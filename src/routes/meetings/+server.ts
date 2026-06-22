@@ -99,8 +99,20 @@ function mapTypes(raw: string | null | undefined): string[] {
 	return raw
 		.split(',')
 		.map((t) => t.trim())
-		.filter((t) => t && t !== 'Online Meeting')
+		.filter((t) => t && t !== 'Online Meeting' && t !== "Chair's Choice")
 		.map((t) => TYPE_MAP[t] ?? t);
+}
+
+// Normalize North American phone numbers to E.164 (e.g. "+12045551234").
+// Numbers that can't be confidently parsed are returned trimmed, unchanged.
+function normalizePhone(raw: string | null | undefined): string | null {
+	if (!raw) return null;
+	const trimmed = raw.trim();
+	if (!trimmed) return null;
+	const digits = trimmed.replace(/\D/g, '');
+	if (digits.length === 10) return `+1${digits}`;
+	if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+	return trimmed;
 }
 
 async function fetchAllMeetings(token: string): Promise<unknown[]> {
@@ -146,7 +158,7 @@ function transformMeeting(item: Record<string, unknown>): Record<string, unknown
 		timezone: f.timezone ?? 'America/Winnipeg',
 		types: mapTypes(f.types),
 		location: f.location ?? null,
-		address: f.address ?? null,
+		formatted_address: f.address ?? null,
 		region: f.region ?? null,
 		sub_region: f['sub-region'] ?? null,
 		latitude: f.latitude != null ? parseFloat(f.latitude) : null,
@@ -166,24 +178,24 @@ function transformMeeting(item: Record<string, unknown>): Record<string, unknown
 	if (f['contact-1-name'] || f['contact-1-email'] || f['contact-1-phone']) {
 		meeting.contact_1_name = f['contact-1-name'] ?? null;
 		meeting.contact_1_email = f['contact-1-email'] ?? null;
-		meeting.contact_1_phone = f['contact-1-phone'] ?? null;
+		meeting.contact_1_phone = normalizePhone(f['contact-1-phone']);
 	}
 	if (f['contact-2-name'] || f['contact-2-email'] || f['contact-2-phone']) {
 		meeting.contact_2_name = f['contact-2-name'] ?? null;
 		meeting.contact_2_email = f['contact-2-email'] ?? null;
-		meeting.contact_2_phone = f['contact-2-phone'] ?? null;
+		meeting.contact_2_phone = normalizePhone(f['contact-2-phone']);
 	}
 	if (f['contact-3-name'] || f['contact-3-email'] || f['contact-3-phone']) {
 		meeting.contact_3_name = f['contact-3-name'] ?? null;
 		meeting.contact_3_email = f['contact-3-email'] ?? null;
-		meeting.contact_3_phone = f['contact-3-phone'] ?? null;
+		meeting.contact_3_phone = normalizePhone(f['contact-3-phone']);
 	}
 
 	// Entity (group-level contact info)
 	if (f.email || f.phone) {
 		meeting.entity = f.group ?? null;
 		meeting.entity_email = f.email ?? null;
-		meeting.entity_phone = f.phone ?? null;
+		meeting.entity_phone = normalizePhone(f.phone);
 	}
 
 	return meeting;
