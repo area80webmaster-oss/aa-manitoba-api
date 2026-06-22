@@ -1,0 +1,69 @@
+[build]
+	command = "pnpm run build"
+	publish = ".netlify/functions-internal"
+	functions = ".netlify/functions-internal"
+
+[build.environment]
+	NODE_VERSION = "20"
+	PNPM_VERSION = "10"
+	# Surface Netlify build hints in CI; safe to leave on.
+	NETLIFY = "true"
+
+# ───────────────────────────────────────────────────────────────────────────
+# Production context: api.aamanitoba.org (custom domain wired in Netlify UI)
+# ───────────────────────────────────────────────────────────────────────────
+[context.production.environment]
+	# Lock the public hostname the SvelteKit endpoint advertises in error
+	# responses and absolute URLs. Required for SvelteKit 2 to generate correct
+	# origin URLs and for CSRF origin checks to be deterministic.
+	ORIGIN = "https://api.aamanitoba.org"
+
+# ───────────────────────────────────────────────────────────────────────────
+# Headers — applied to every response, before any route handler runs.
+# These duplicate the in-route CORS headers as a belt-and-braces fallback
+# so a misconfigured handler still serves a safe response.
+# ───────────────────────────────────────────────────────────────────────────
+[[headers]]
+	for = "/*"
+	[headers.values]
+		# Only the Meetings Guide app hosted under aamanitoba.org can call us.
+		# We can't echo the request Origin here because Netlify header rules are
+		# static, so the dynamic origin matching happens in src/hooks.server.ts.
+		# This fallback is for direct / non-CORS requests (curl, monitoring).
+		Access-Control-Allow-Origin = "https://aamanitoba.org"
+		Access-Control-Allow-Methods = "GET, OPTIONS"
+		Access-Control-Allow-Headers = "Content-Type"
+		Vary = "Origin"
+		Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
+		X-Content-Type-Options = "nosniff"
+		X-Frame-Options = "DENY"
+		Referrer-Policy = "no-referrer"
+		# The data is for an authenticated app feed — no need to be indexed.
+		X-Robots-Tag = "noindex, nofollow"
+		Permissions-Policy = "geolocation=(), microphone=(), camera=()"
+
+# Tighter cache on static assets emitted by SvelteKit (favicon, etc.).
+[[headers]]
+	for = "/_app/*"
+	[headers.values]
+		Cache-Control = "public, max-age=31536000, immutable"
+
+# Disable caching on the dynamic API endpoint; the route handler sets its own
+# Cache-Control but this guarantees nothing is cached at the CDN edge.
+[[headers]]
+	for = "/meetings"
+	[headers.values]
+		Cache-Control = "public, max-age=300, s-maxage=300, stale-while-revalidate=60"
+
+# ───────────────────────────────────────────────────────────────────────────
+# Redirects — every unknown path lands on /meetings so the API surface is
+# a single, discoverable route. Returning 308 (permanent) keeps SEO crawlers
+# from re-hitting dead URLs.
+# ───────────────────────────────────────────────────────────────────────────
+[[redirects]]
+	from = "/*"
+	to = "/meetings"
+	status = 308
+	conditions = { Host = "api.aamanitoba.org" }
+	# Don't redirect the route itself, the SvelteKit entry, or Netlify internals.
+	exclude = ["/meetings", "/.netlify/*", "/_app/*", "/favicon.ico"]
