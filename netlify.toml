@@ -48,22 +48,27 @@
 	[headers.values]
 		Cache-Control = "public, max-age=31536000, immutable"
 
-# Disable caching on the dynamic API endpoint; the route handler sets its own
-# Cache-Control but this guarantees nothing is cached at the CDN edge.
+# Edge cache for the dynamic API endpoints; the route handlers set their own
+# Cache-Control, these mirror it at the CDN.
 [[headers]]
 	for = "/meetings"
 	[headers.values]
 		Cache-Control = "public, max-age=300, s-maxage=300, stale-while-revalidate=60"
 
+[[headers]]
+	for = "/events"
+	[headers.values]
+		Cache-Control = "public, max-age=300, s-maxage=300, stale-while-revalidate=60"
+
 # ───────────────────────────────────────────────────────────────────────────
 # Redirects — every unknown path lands on /meetings so the API surface is
-# a single, discoverable route. Returning 308 (permanent) keeps SEO crawlers
-# from re-hitting dead URLs.
+# a small, discoverable set of routes. Returning 308 (permanent) keeps SEO
+# crawlers from re-hitting dead URLs.
 # ───────────────────────────────────────────────────────────────────────────
 [[redirects]]
 	from = "/*"
 	to = "/meetings"
 	status = 308
 	conditions = { Host = "api.aamanitoba.org" }
-	# Don't redirect the route itself, the SvelteKit entry, or Netlify internals.
-	exclude = ["/meetings", "/.netlify/*", "/_app/*", "/favicon.ico"]
+	# Don't redirect the real routes, the SvelteKit entry, or Netlify internals.
+	exclude = ["/meetings", "/events", "/.netlify/*", "/_app/*", "/favicon.ico"]
