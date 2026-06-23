@@ -2,6 +2,10 @@ import type { Handle } from '@sveltejs/kit';
 
 const ALLOWED_ORIGIN_SUFFIX = '.aamanitoba.org';
 
+// The Webflow Designer/preview domain. Allowed so the meetings embed can be
+// tested against the live API before publishing to aamanitoba.org.
+const ALLOWED_WEBFLOW_HOSTS = new Set(['aa-manitoba-website.webflow.io']);
+
 function isAllowedOrigin(origin: string | null): boolean {
 	if (!origin) return false;
 	try {
@@ -9,7 +13,8 @@ function isAllowedOrigin(origin: string | null): boolean {
 		if (protocol !== 'https:') return false;
 		return (
 			hostname === 'aamanitoba.org' ||
-			hostname.endsWith(`.aamanitoba.org`)
+			hostname.endsWith(`.aamanitoba.org`) ||
+			ALLOWED_WEBFLOW_HOSTS.has(hostname)
 		);
 	} catch {
 		return false;
