@@ -4,6 +4,9 @@ import type { RequestHandler } from './$types';
 const WEBFLOW_API_BASE = 'https://api.webflow.com/v2';
 const COLLECTION_ID = '6a156a1f0ac578734e57693d';
 
+// Drop historical events: anything starting before this cutoff is excluded.
+const MIN_START_DATE = Date.UTC(2026, 0, 1); // 2026-01-01T00:00:00Z
+
 // Webflow Option fields serialize as the option's ID in fieldData (not the
 // display name), so we map them back to the human label the calendar groups and
 // colour-codes by. Keep these names byte-for-byte in sync with the Category
@@ -95,7 +98,13 @@ export const GET: RequestHandler = async () => {
 		const raw = await fetchAllItems(token);
 		const events = (raw as Record<string, unknown>[])
 			.filter((item) => !item.isArchived && !item.isDraft)
-			.map(transformEvent);
+			.map(transformEvent)
+			.filter((event) => {
+				const start = event.start as string | null;
+				if (!start) return false;
+				const ts = Date.parse(start);
+				return !Number.isNaN(ts) && ts >= MIN_START_DATE;
+			});
 
 		return new Response(JSON.stringify(events), {
 			status: 200,
