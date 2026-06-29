@@ -174,22 +174,8 @@ function transformMeeting(item: Record<string, unknown>): Record<string, unknown
 		updated: toUpdatedTimestamp(item.lastPublished as string)
 	};
 
-	// Contact persons
-	if (f['contact-1-name'] || f['contact-1-email'] || f['contact-1-phone']) {
-		meeting.contact_1_name = f['contact-1-name'] ?? null;
-		meeting.contact_1_email = f['contact-1-email'] ?? null;
-		meeting.contact_1_phone = normalizePhone(f['contact-1-phone']);
-	}
-	if (f['contact-2-name'] || f['contact-2-email'] || f['contact-2-phone']) {
-		meeting.contact_2_name = f['contact-2-name'] ?? null;
-		meeting.contact_2_email = f['contact-2-email'] ?? null;
-		meeting.contact_2_phone = normalizePhone(f['contact-2-phone']);
-	}
-	if (f['contact-3-name'] || f['contact-3-email'] || f['contact-3-phone']) {
-		meeting.contact_3_name = f['contact-3-name'] ?? null;
-		meeting.contact_3_email = f['contact-3-email'] ?? null;
-		meeting.contact_3_phone = normalizePhone(f['contact-3-phone']);
-	}
+	// Contact persons are intentionally omitted from the public feed —
+	// per-person names/emails/phones are sensitive and must never be exposed.
 
 	// Entity (group-level contact info)
 	if (f.email || f.phone) {
