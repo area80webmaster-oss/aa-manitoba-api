@@ -20,20 +20,14 @@
 
 # ───────────────────────────────────────────────────────────────────────────
 # Headers — applied to every response, before any route handler runs.
-# These duplicate the in-route CORS headers as a belt-and-braces fallback
-# so a misconfigured handler still serves a safe response.
+# CORS is intentionally NOT set here: Netlify applies these static rules on top
+# of the function response, so a second Access-Control-Allow-Origin would
+# collide with the one from src/hooks.server.ts and produce a duplicate header
+# that browsers reject. CORS lives only in the hook.
 # ───────────────────────────────────────────────────────────────────────────
 [[headers]]
 	for = "/*"
 	[headers.values]
-		# Only the Meetings Guide app hosted under aamanitoba.org can call us.
-		# We can't echo the request Origin here because Netlify header rules are
-		# static, so the dynamic origin matching happens in src/hooks.server.ts.
-		# This fallback is for direct / non-CORS requests (curl, monitoring).
-		Access-Control-Allow-Origin = "https://aamanitoba.org"
-		Access-Control-Allow-Methods = "GET, OPTIONS"
-		Access-Control-Allow-Headers = "Content-Type"
-		Vary = "Origin"
 		Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
 		X-Content-Type-Options = "nosniff"
 		X-Frame-Options = "DENY"

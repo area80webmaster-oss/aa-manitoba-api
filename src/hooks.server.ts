@@ -1,75 +1,32 @@
 import type { Handle } from '@sveltejs/kit';
 
-const ALLOWED_ORIGIN_SUFFIX = '.aamanitoba.org';
-
-// The Webflow Designer/preview domain. Allowed so the meetings embed can be
-// tested against the live API before publishing to aamanitoba.org.
-const ALLOWED_WEBFLOW_HOSTS = new Set(['aa-manitoba-website.webflow.io']);
-
-function isAllowedOrigin(origin: string | null): boolean {
-	if (!origin) return false;
-	try {
-		const { hostname, protocol } = new URL(origin);
-		if (protocol !== 'https:') return false;
-		return (
-			hostname === 'aamanitoba.org' ||
-			hostname.endsWith(`.aamanitoba.org`) ||
-			ALLOWED_WEBFLOW_HOSTS.has(hostname)
-		);
-	} catch {
-		return false;
-	}
-}
+// The feed is public, read-only meeting data published in the code4recovery
+// spec. CORS is a browser-only mechanism and provides no security for public
+// data — anyone can curl it — so we allow any origin and let third-party
+// consumers fetch via browser AJAX. If access ever needs restricting, that
+// must come from a token check, not from CORS.
+//
+// CORS lives ONLY here. Do not also set Access-Control-* in netlify.toml:
+// Netlify applies static header rules on top of the function response, and a
+// second Access-Control-Allow-Origin produces a duplicate header that browsers
+// reject ("contains multiple values").
+const CORS_HEADERS: Record<string, string> = {
+	'Access-Control-Allow-Origin': '*',
+	'Access-Control-Allow-Methods': 'GET, OPTIONS',
+	'Access-Control-Allow-Headers': 'Content-Type'
+};
 
 export const handle: Handle = async ({ event, resolve }) => {
-	const origin = event.request.headers.get('origin');
-	const method = event.request.method;
-
-	// Dynamic CORS — the netlify.toml headers are static, so we echo the
-	// verified Origin here for cross-origin XHR / fetch calls.
-	if (origin && isAllowedOrigin(origin)) {
-		event.request.headers.set('x-allowed-origin', origin);
-	}
-
-	if (method === 'OPTIONS') {
-		if (origin && !isAllowedOrigin(origin)) {
-			return new Response('Forbidden', { status: 403 });
-		}
+	if (event.request.method === 'OPTIONS') {
 		return new Response(null, {
 			status: 204,
-			headers: {
-				'Access-Control-Allow-Origin': origin ?? 'https://aamanitoba.org',
-				'Access-Control-Allow-Methods': 'GET, OPTIONS',
-				'Access-Control-Allow-Headers': 'Content-Type',
-				Vary: 'Origin',
-				'X-Content-Type-Options': 'nosniff'
-			}
-		});
-	}
-
-	// Reject cross-origin GETs from origins we don't recognise. Same-origin
-	// requests and direct (no-Origin) calls — curl, monitoring — pass.
-	if (origin && !isAllowedOrigin(origin)) {
-		return new Response(JSON.stringify({ error: 'Origin not allowed' }), {
-			status: 403,
-			headers: {
-				'Content-Type': 'application/json',
-				Vary: 'Origin',
-				'X-Content-Type-Options': 'nosniff'
-			}
+			headers: { ...CORS_HEADERS, 'X-Content-Type-Options': 'nosniff' }
 		});
 	}
 
 	const response = await resolve(event);
-
-	if (origin && isAllowedOrigin(origin)) {
-		response.headers.set('Access-Control-Allow-Origin', origin);
-		response.headers.append('Vary', 'Origin');
+	for (const [key, value] of Object.entries(CORS_HEADERS)) {
+		response.headers.set(key, value);
 	}
-
 	return response;
 };
-
-// Keep this constant referenced so dead-code elimination doesn't strip the
-// import during static analysis of test builds.
-export const _ALLOWED_ORIGIN_SUFFIX = ALLOWED_ORIGIN_SUFFIX;
