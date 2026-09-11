@@ -22,6 +22,19 @@ const CATEGORY_MAP: Record<string, string> = {
 	'584b2121eabea5edfdb46f06f33589ca': 'Main'
 };
 
+// Recurrence: like Category, the Repeats Option field serializes as an option
+// ID, so we map it back to the label the calendar embed switches on. Keep these
+// byte-for-byte in sync with the Repeats option list in the Events collection.
+// Unknown IDs pass through raw — the embed fails open and renders the event
+// once instead of hiding it.
+const REPEATS_MAP: Record<string, string> = {
+	df9eba79e58d719b263b230957a737a8: 'Every week',
+	a2d9a7ed0a5a42778595910fab5b3da4: 'Every 2 weeks',
+	'04291e92fe2666c8395cf7c39444c098': 'Every month — same weekday (e.g. 4th Monday)',
+	'9ad27fe7c3bca2cd114b03c96afa472a': 'Every month — last weekday (e.g. last Friday)',
+	cf00b765a7c9ce2d7c3e31fb430bd460: 'Every month — same date (e.g. the 15th)'
+};
+
 const CORS_HEADERS = {
 	'Access-Control-Allow-Origin': '*',
 	'Access-Control-Allow-Methods': 'GET, OPTIONS',
@@ -64,6 +77,7 @@ async function fetchAllItems(token: string): Promise<unknown[]> {
 function transformEvent(item: Record<string, unknown>): Record<string, unknown> {
 	const f = item.fieldData as Record<string, unknown>;
 	const categoryId = (f.category as string) ?? null;
+	const repeatsId = (f.repeats as string) ?? null;
 
 	return {
 		name: (f.name as string) ?? null,
@@ -76,7 +90,17 @@ function transformEvent(item: Record<string, unknown>): Record<string, unknown> 
 		// itself for colour-coding and filter pills. Unknown IDs fall back to the
 		// raw value so they stay visible rather than silently dropping.
 		category: categoryId ? (CATEGORY_MAP[categoryId] ?? categoryId) : null,
-		short_description: (f['short-description'] as string) ?? null
+		short_description: (f['short-description'] as string) ?? null,
+		// Recurrence passthrough (fields added 2026-09; expansion happens in the
+		// calendar embed). Webflow returns unset fields as explicit null, so this
+		// truthiness gate keeps output for existing one-off events byte-identical.
+		...(repeatsId
+			? {
+					repeats: REPEATS_MAP[repeatsId] ?? repeatsId,
+					repeat_until: (f['repeat-until'] as string) ?? null,
+					skip_dates: (f['skip-dates'] as string) ?? null
+				}
+			: {})
 	};
 }
 
