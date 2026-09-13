@@ -20,6 +20,13 @@ on:
         description: 'Dry run (print plan, write nothing)'
         type: boolean
         default: false
+  # Pushing changes to the job itself also runs it — doubles as a manual
+  # trigger for accounts whose token can't fire workflow_dispatch.
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/deindex-past-events.mjs'
+      - '.github/workflows/deindex-past-events.yml'
 
 jobs:
   deindex:
