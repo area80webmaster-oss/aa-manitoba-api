@@ -1,0 +1,37 @@
+# Daily: mark past events noindex via the Search Indexing CMS field.
+# See scripts/deindex-past-events.mjs for the rules and safety rails.
+#
+# Setup (one-time): add a repo secret WEBFLOW_WRITE_TOKEN — a Webflow site
+# token for the AA Manitoba site with CMS read + write scope. Until the
+# secret exists, this workflow fails loudly (by design) so it can't be
+# silently forgotten.
+#
+# Note: GitHub disables cron schedules in repos with no activity for 60 days;
+# any commit re-enables it, and workflow_dispatch always works manually.
+
+name: De-index past events
+
+on:
+  schedule:
+    - cron: '7 8 * * *' # daily 08:07 UTC ≈ 03:07 Winnipeg
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (print plan, write nothing)'
+        type: boolean
+        default: false
+
+jobs:
+  deindex:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: De-index past events
+        env:
+          WEBFLOW_WRITE_TOKEN: ${{ secrets.WEBFLOW_WRITE_TOKEN }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
+        run: node scripts/deindex-past-events.mjs
