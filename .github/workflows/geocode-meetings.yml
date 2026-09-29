@@ -56,8 +56,7 @@ jobs:
           # the script falls back to Nominatim without it.
           GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
           DRY_RUN: ${{ inputs.dry_run == true && '1' || '0' }}
-          # TEMP: pinned on to E2E the stamp migration against the legacy draft.
-          STAMP_EXISTING: '1'
+          STAMP_EXISTING: ${{ inputs.stamp_existing == true && '1' || '0' }}
           # Anywhere but main only draft items may be written.
           DRAFT_ONLY: ${{ (github.ref != 'refs/heads/main' || inputs.draft_only == true) && '1' || '0' }}
           GEOCODER_CONTACT: 'webmaster@aamanitoba.org'
