@@ -76,10 +76,53 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Returns { latitude, longitude } (5 decimal places, ~1.1 m) for a
 // street-level match, or null when the address can't be resolved precisely.
-// Nominatim only for now; if match quality on rural addresses ever
-// disappoints, a Google Geocoding branch keyed off GOOGLE_MAPS_API_KEY slots
-// in here (accept only ROOFTOP / RANGE_INTERPOLATED results).
+// Uses Google Geocoding when GOOGLE_MAPS_API_KEY is set (complete Canadian
+// house-number data); otherwise falls back to Nominatim, whose OSM source is
+// missing house numbers on many Winnipeg streets — those come back as road
+// matches and are rejected rather than pinned kilometres off.
+const HAS_HOUSE_NUMBER = /^\s*\d+[A-Za-z]?[\s,-]/;
+
 async function geocode(address) {
+  return process.env.GOOGLE_MAPS_API_KEY ? geocodeGoogle(address) : geocodeNominatim(address);
+}
+
+async function geocodeGoogle(address) {
+  const url =
+    'https://maps.googleapis.com/maps/api/geocode/json' +
+    `?address=${encodeURIComponent(address)}&components=country:CA&region=ca` +
+    `&key=${process.env.GOOGLE_MAPS_API_KEY}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Google geocoder HTTP ${res.status}`);
+  const data = await res.json();
+  if (data.status === 'ZERO_RESULTS') return null;
+  if (data.status !== 'OK') {
+    throw new Error(`Google geocoder ${data.status}${data.error_message ? ` — ${data.error_message}` : ''}`);
+  }
+
+  const r = data.results[0];
+  const locationType = r.geometry?.location_type;
+  // ROOFTOP / RANGE_INTERPOLATED are address-precise. GEOMETRIC_CENTER is
+  // only trusted when it centers an actual building or venue — for a route
+  // or locality it is a guess along/inside it.
+  const precise =
+    locationType === 'ROOFTOP' ||
+    locationType === 'RANGE_INTERPOLATED' ||
+    (locationType === 'GEOMETRIC_CENTER' &&
+      (r.types ?? []).some((t) =>
+        ['street_address', 'premise', 'subpremise', 'establishment', 'point_of_interest', 'church'].includes(t)
+      ));
+  if (!precise) {
+    console.log(`  ↳ rejected: match too coarse (${locationType} ${JSON.stringify(r.types ?? [])})`);
+    return null;
+  }
+
+  return {
+    latitude: r.geometry.location.lat.toFixed(5),
+    longitude: r.geometry.location.lng.toFixed(5),
+  };
+}
+
+async function geocodeNominatim(address) {
   const url = `${NOMINATIM}?format=jsonv2&limit=1&countrycodes=ca&q=${encodeURIComponent(address)}`;
   const res = await fetch(url, {
     headers: { 'User-Agent': `aa-manitoba-meetings-geocoder/1.0 (${contact})` },
@@ -89,15 +132,31 @@ async function geocode(address) {
   if (!Array.isArray(results) || results.length === 0) return null;
 
   const r = results[0];
-  const [south, north, west, east] = (r.boundingbox || []).map(Number);
-  if (![south, north, west, east].every(Number.isFinite)) return null;
-  const maxLat = r.category === 'highway' ? MAX_ROAD_BBOX_LAT_DEG : MAX_BBOX_LAT_DEG;
-  const maxLon = r.category === 'highway' ? MAX_ROAD_BBOX_LON_DEG : MAX_BBOX_LON_DEG;
-  if (north - south > maxLat || east - west > maxLon) {
-    console.log(
-      `  ↳ rejected: match too coarse (${r.category ?? '?'}/${r.type ?? '?'} "${r.display_name}")`
-    );
+  const reject = (why) => {
+    console.log(`  ↳ rejected: ${why} (${r.category ?? '?'}/${r.type ?? '?'} "${r.display_name}")`);
     return null;
+  };
+
+  // A road match for a house-numbered query means the number wasn't found;
+  // OSM roads are split into many short segments, so the returned segment
+  // can sit kilometres from the actual building and its tiny bounding box
+  // says nothing about accuracy.
+  if (r.addresstype === 'road' || r.category === 'highway') {
+    if (HAS_HOUSE_NUMBER.test(address)) return reject('street found but not the house number');
+    const [south, north, west, east] = (r.boundingbox || []).map(Number);
+    if (![south, north, west, east].every(Number.isFinite)) return null;
+    if (north - south > MAX_ROAD_BBOX_LAT_DEG || east - west > MAX_ROAD_BBOX_LON_DEG) {
+      return reject('road segment too long to pin');
+    }
+  } else {
+    if (['postcode', 'city', 'town', 'village', 'hamlet', 'suburb', 'neighbourhood', 'county', 'state'].includes(r.addresstype)) {
+      return reject('locality-level match');
+    }
+    const [south, north, west, east] = (r.boundingbox || []).map(Number);
+    if (![south, north, west, east].every(Number.isFinite)) return null;
+    if (north - south > MAX_BBOX_LAT_DEG || east - west > MAX_BBOX_LON_DEG) {
+      return reject('match too coarse');
+    }
   }
 
   return {
@@ -214,5 +273,3 @@ for (const item of candidates) {
 console.log(
   `Done. ${updated} ${dryRun ? 'would be updated' : 'updated'}, ${unresolved} unresolved (listed above for a human).`
 );
-
-// E2E rerun marker (harmless): 1

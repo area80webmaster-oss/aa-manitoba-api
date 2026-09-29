@@ -48,6 +48,9 @@ jobs:
       - name: Geocode meeting addresses
         env:
           WEBFLOW_WRITE_TOKEN: ${{ secrets.WEBFLOW_WRITE_TOKEN }}
+          # Optional; empty until the Google Geocoding key is added as a secret —
+          # the script falls back to Nominatim without it.
+          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
           DRY_RUN: ${{ inputs.dry_run == true && '1' || '0' }}
           # Anywhere but main only draft items may be written.
           DRAFT_ONLY: ${{ (github.ref != 'refs/heads/main' || inputs.draft_only == true) && '1' || '0' }}
