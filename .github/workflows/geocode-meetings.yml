@@ -48,8 +48,7 @@ jobs:
       - name: Geocode meeting addresses
         env:
           WEBFLOW_WRITE_TOKEN: ${{ secrets.WEBFLOW_WRITE_TOKEN }}
-          # Staging rail: DRY RUN everywhere until this line is flipped.
-          DRY_RUN: '1'
+          DRY_RUN: ${{ inputs.dry_run == true && '1' || '0' }}
           # Anywhere but main only draft items may be written.
           DRAFT_ONLY: ${{ (github.ref != 'refs/heads/main' || inputs.draft_only == true) && '1' || '0' }}
           GEOCODER_CONTACT: 'webmaster@aamanitoba.org'
