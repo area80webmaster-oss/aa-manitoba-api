@@ -273,3 +273,5 @@ for (const item of candidates) {
 console.log(
   `Done. ${updated} ${dryRun ? 'would be updated' : 'updated'}, ${unresolved} unresolved (listed above for a human).`
 );
+
+// E2E rerun marker: 2
