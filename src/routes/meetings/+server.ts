@@ -163,7 +163,13 @@ function transformMeeting(item: Record<string, unknown>): Record<string, unknown
 		sub_region: f['sub-region'] ?? null,
 		latitude: f.latitude != null ? parseFloat(f.latitude) : null,
 		longitude: f.longitude != null ? parseFloat(f.longitude) : null,
-		approximate: f.approximate ?? null,
+		// TSML UI guesses approximate-ness by comma-counting the address when
+		// this is empty, which shelved well-mapped meetings as inactive over
+		// formatting slips. Once a meeting has coordinates the pin is real, so
+		// default to "no"; an explicit yes/no from the CMS always wins, and a
+		// meeting without coordinates keeps TSML's guess so an unmappable new
+		// entry still surfaces as needing attention.
+		approximate: f.approximate?.trim() || (f.latitude && f.longitude ? 'no' : null),
 		notes: stripHtml(f.notes) || null,
 		location_notes: stripHtml(f['location-notes']) || null,
 		group: f.group ?? null,
