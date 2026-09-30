@@ -20,6 +20,11 @@
 //     through within its cache window without touching publish state.
 //   • Items are skipped when Address equals the geocoded-address marker, so
 //     the sweep is idempotent and webhook-triggered writes can't loop.
+//   • Meetings that predate the geocoder carry hand-entered coordinates but
+//     no marker; those are stamped (marker := address, no re-geocode — their
+//     coordinates are the ground truth) so only future address edits trigger
+//     a geocode. Folded into the normal sweep because workflow_dispatch is
+//     not available to this repo's token (403 on manual runs).
 //   • DRAFT_ONLY=1 restricts writes to draft items (staging phase).
 //   • DRY_RUN=1 prints the plan without writing.
 //   • Nominatim usage policy: max 1 request/second, identifying User-Agent.
@@ -43,7 +48,6 @@ const MAX_ROAD_BBOX_LON_DEG = 0.006;
 const token = process.env.WEBFLOW_WRITE_TOKEN;
 const dryRun = process.env.DRY_RUN === '1';
 const draftOnly = process.env.DRAFT_ONLY === '1';
-const stampExisting = process.env.STAMP_EXISTING === '1';
 const contact = process.env.GEOCODER_CONTACT || 'https://aamanitoba.org';
 
 if (!token) {
@@ -174,24 +178,20 @@ for (let offset = 0; ; offset += 100) {
 }
 console.log(`Fetched ${items.length} meetings.`);
 
-// One-time migration (STAMP_EXISTING=1): meetings that predate the geocoder
-// already carry hand-entered coordinates but no geocoded-address marker.
-// Stamp marker := address WITHOUT re-geocoding, so their existing (often
-// better-than-Nominatim) coordinates are kept and only future address edits
-// trigger a geocode. Run this before enabling the webhook for all items.
-if (stampExisting) {
-  const toStamp = items.filter((item) => {
-    if (item.isArchived) return false;
-    if (draftOnly && !item.isDraft) return false;
-    const f = item.fieldData ?? {};
-    return (
-      (f.address ?? '').trim() &&
-      (f.latitude ?? '').trim() &&
-      (f.longitude ?? '').trim() &&
-      !(f['geocoded-address'] ?? '').trim()
-    );
-  });
-  console.log(`STAMP_EXISTING: ${toStamp.length} items to stamp${dryRun ? ' — DRY RUN' : ''}.`);
+// 2. Stamp pre-geocoder items: hand-entered coordinates, no marker yet.
+const toStamp = items.filter((item) => {
+  if (item.isArchived) return false;
+  if (draftOnly && !item.isDraft) return false;
+  const f = item.fieldData ?? {};
+  return (
+    (f.address ?? '').trim() &&
+    (f.latitude ?? '').trim() &&
+    (f.longitude ?? '').trim() &&
+    !(f['geocoded-address'] ?? '').trim()
+  );
+});
+if (toStamp.length) {
+  console.log(`${toStamp.length} pre-geocoder items to stamp${dryRun ? ' — DRY RUN' : ''}.`);
   for (const item of toStamp) {
     console.log(`• stamp ${item.fieldData.name} (${item.id})`);
     if (!dryRun) {
@@ -205,11 +205,9 @@ if (stampExisting) {
       await sleep(1100);
     }
   }
-  console.log(`Stamping done (${toStamp.length}).`);
-  process.exit(0);
 }
 
-// 2. Select candidates: an address exists and differs from the last one we
+// 3. Select candidates: an address exists and differs from the last one we
 //    successfully geocoded.
 const candidates = items.filter((item) => {
   if (item.isArchived) return false;
@@ -227,7 +225,7 @@ console.log(
   `${candidates.length} need geocoding${draftOnly ? ' (drafts only)' : ''}${dryRun ? ' — DRY RUN' : ''}.`
 );
 
-// 3. Geocode and write back, one per second per Nominatim policy.
+// 4. Geocode and write back, one per second per Nominatim policy.
 let updated = 0;
 let unresolved = 0;
 for (const item of candidates) {

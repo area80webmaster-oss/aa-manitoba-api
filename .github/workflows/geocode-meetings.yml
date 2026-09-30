@@ -28,10 +28,6 @@ on:
         description: 'Only touch draft items'
         type: boolean
         default: false
-      stamp_existing:
-        description: 'One-time migration: stamp geocoded-address on items that already have coordinates (no geocoding)'
-        type: boolean
-        default: false
   # Pushing changes to the job itself also runs it — doubles as a manual
   # trigger for accounts whose token can't fire workflow_dispatch.
   push:
@@ -56,7 +52,6 @@ jobs:
           # the script falls back to Nominatim without it.
           GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
           DRY_RUN: ${{ inputs.dry_run == true && '1' || '0' }}
-          STAMP_EXISTING: ${{ inputs.stamp_existing == true && '1' || '0' }}
           # Anywhere but main only draft items may be written.
           DRAFT_ONLY: ${{ (github.ref != 'refs/heads/main' || inputs.draft_only == true) && '1' || '0' }}
           GEOCODER_CONTACT: 'webmaster@aamanitoba.org'
