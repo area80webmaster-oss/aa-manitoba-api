@@ -146,19 +146,17 @@ async function fetchAllMeetings(token: string): Promise<unknown[]> {
 	return items;
 }
 
-// TSML UI guesses approximate-ness by comma-counting the address when the
-// field is empty, which shelved well-mapped meetings as inactive over
-// formatting slips. Once a meeting has coordinates the pin is real, so send
-// "no" — and for an in-person meeting (no online link) an explicit "yes" is
-// overridden too: editors re-type it out of habit and a "yes" silently hides
-// the group. "yes" stays honored for online meetings (renders online-only),
-// and meetings without coordinates keep TSML's guess so an unmappable new
-// entry still surfaces as needing attention.
+// A meeting that meets in person must never disappear over address
+// vagueness: TSML UI turns approximate="yes" — typed by hand or guessed by
+// comma-counting the address — into the Inactive shelf, which kept knocking
+// real groups off the site. In-person meetings therefore always feed "no";
+// one without coordinates simply lists without a map pin until the geocoder
+// or a human supplies one. "yes" is honored only for online meetings, where
+// it correctly renders them online-only.
 function approximateFor(f: Record<string, string | null | undefined>): string | null {
+	if (!f['conference-url']) return 'no';
 	const explicit = f.approximate?.trim() || null;
-	const hasCoords = Boolean(f.latitude && f.longitude);
-	if (hasCoords && !f['conference-url']) return 'no';
-	return explicit ?? (hasCoords ? 'no' : null);
+	return explicit ?? (f.latitude && f.longitude ? 'no' : null);
 }
 
 function transformMeeting(item: Record<string, unknown>): Record<string, unknown> {

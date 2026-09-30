@@ -44,6 +44,12 @@ const MAX_BBOX_LON_DEG = 0.03;
 // still a usable pin.
 const MAX_ROAD_BBOX_LAT_DEG = 0.004;
 const MAX_ROAD_BBOX_LON_DEG = 0.006;
+// A community-only address (no street number) legitimately pins at the
+// community itself — reserves and small towns often have no street grid.
+// Big-city centroids stay rejected: a city name alone is not a venue.
+const LOCALITY_ADDRESSTYPES = ['village', 'hamlet', 'town', 'city', 'municipality', 'suburb', 'neighbourhood', 'locality', 'isolated_dwelling'];
+const MAX_LOCALITY_BBOX_LAT_DEG = 0.12;
+const MAX_LOCALITY_BBOX_LON_DEG = 0.18;
 
 const token = process.env.WEBFLOW_WRITE_TOKEN;
 const dryRun = process.env.DRY_RUN === '1';
@@ -152,9 +158,16 @@ async function geocodeNominatim(address) {
     if (north - south > MAX_ROAD_BBOX_LAT_DEG || east - west > MAX_ROAD_BBOX_LON_DEG) {
       return reject('road segment too long to pin');
     }
+  } else if (LOCALITY_ADDRESSTYPES.includes(r.addresstype)) {
+    if (HAS_HOUSE_NUMBER.test(address)) return reject('street address expected, got a locality');
+    const [south, north, west, east] = (r.boundingbox || []).map(Number);
+    if (![south, north, west, east].every(Number.isFinite)) return null;
+    if (north - south > MAX_LOCALITY_BBOX_LAT_DEG || east - west > MAX_LOCALITY_BBOX_LON_DEG) {
+      return reject('community too large to pin');
+    }
   } else {
-    if (['postcode', 'city', 'town', 'village', 'hamlet', 'suburb', 'neighbourhood', 'county', 'state'].includes(r.addresstype)) {
-      return reject('locality-level match');
+    if (['postcode', 'county', 'state'].includes(r.addresstype)) {
+      return reject('not a place');
     }
     const [south, north, west, east] = (r.boundingbox || []).map(Number);
     if (![south, north, west, east].every(Number.isFinite)) return null;
