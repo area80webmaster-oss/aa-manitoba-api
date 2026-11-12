@@ -1,0 +1,1527 @@
+{
+ "groups": [
+  {
+   "id": "g1",
+   "isDraft": true,
+   "isArchived": false,
+   "lastUpdated": "2026-11-10T10:00:00.000Z",
+   "fieldData": {
+    "name": "Group 1",
+    "slug": "group-1",
+    "location": "Hall",
+    "address": "1 Test St, Winnipeg, MB R3C 0A1, Canada",
+    "region": "Winnipeg",
+    "latitude": "49.9",
+    "longitude": "-97.1",
+    "timezone": "America/Winnipeg",
+    "hide-from-meeting-finder": false,
+    "hide-group-name": false
+   }
+  },
+  {
+   "id": "g2",
+   "isDraft": true,
+   "isArchived": false,
+   "lastUpdated": "2026-11-10T10:00:00.000Z",
+   "fieldData": {
+    "name": "Group 2",
+    "slug": "group-2",
+    "location": "Hall",
+    "address": "1 Test St, Winnipeg, MB R3C 0A1, Canada",
+    "region": "Winnipeg",
+    "latitude": "49.9",
+    "longitude": "-97.1",
+    "timezone": "America/Winnipeg",
+    "hide-from-meeting-finder": false,
+    "hide-group-name": false,
+    "conference-url": "https://zoom.us/j/111",
+    "conference-url-notes": "<p>ID 111</p>",
+    "approximate": "yes"
+   }
+  },
+  {
+   "id": "g3",
+   "isDraft": true,
+   "isArchived": false,
+   "lastUpdated": "2026-11-10T10:00:00.000Z",
+   "fieldData": {
+    "name": "Group 3",
+    "slug": "group-3",
+    "location": "Hall",
+    "address": "1 Test St, Winnipeg, MB R3C 0A1, Canada",
+    "region": "Winnipeg",
+    "latitude": "49.9",
+    "longitude": "-97.1",
+    "timezone": "America/Winnipeg",
+    "hide-from-meeting-finder": false,
+    "hide-group-name": true,
+    "email": "g3@example.org",
+    "phone": "204 555 0100"
+   }
+  },
+  {
+   "id": "g4",
+   "isDraft": true,
+   "isArchived": false,
+   "lastUpdated": "2026-11-10T10:00:00.000Z",
+   "fieldData": {
+    "name": "Group 4",
+    "slug": "group-4",
+    "location": "Hall",
+    "address": "1 Test St, Winnipeg, MB R3C 0A1, Canada",
+    "region": "Winnipeg",
+    "latitude": "49.9",
+    "longitude": "-97.1",
+    "timezone": "America/Winnipeg",
+    "hide-from-meeting-finder": true,
+    "hide-group-name": false
+   }
+  },
+  {
+   "id": "g5",
+   "isDraft": true,
+   "isArchived": true,
+   "lastUpdated": "2026-11-10T10:00:00.000Z",
+   "fieldData": {
+    "name": "Group 5",
+    "slug": "group-5",
+    "location": "Hall",
+    "address": "1 Test St, Winnipeg, MB R3C 0A1, Canada",
+    "region": "Winnipeg",
+    "latitude": "49.9",
+    "longitude": "-97.1",
+    "timezone": "America/Winnipeg",
+    "hide-from-meeting-finder": false,
+    "hide-group-name": false
+   }
+  },
+  {
+   "id": "g6",
+   "isDraft": true,
+   "isArchived": false,
+   "lastUpdated": "2026-11-10T10:00:00.000Z",
+   "fieldData": {
+    "name": "Group 6",
+    "slug": "group-6",
+    "location": "Hall",
+    "address": "1 Test St, Winnipeg, MB R3C 0A1, Canada",
+    "region": "Winnipeg",
+    "latitude": null,
+    "longitude": null,
+    "timezone": "America/Winnipeg",
+    "hide-from-meeting-finder": false,
+    "hide-group-name": false,
+    "email": "g6@example.org",
+    "phone": "1-204-555-0199",
+    "website": "https://example.org",
+    "group-notes": "<p>Group  <b>notes</b> &amp; more</p>",
+    "location-notes": "<p>Side door</p>",
+    "sub-region": "Brandon"
+   }
+  },
+  {
+   "id": "g7",
+   "isDraft": true,
+   "isArchived": false,
+   "lastUpdated": "2026-11-20T10:00:00.000Z",
+   "fieldData": {
+    "name": "Group 7",
+    "slug": "group-7",
+    "location": "Hall",
+    "address": "1 Test St, Winnipeg, MB R3C 0A1, Canada",
+    "region": "Winnipeg",
+    "latitude": "49.9",
+    "longitude": "-97.1",
+    "timezone": "America/Winnipeg",
+    "hide-from-meeting-finder": false,
+    "hide-group-name": false
+   }
+  }
+ ],
+ "meetings": [
+  {
+   "id": "m1",
+   "isDraft": true,
+   "isArchived": false,
+   "lastUpdated": "2026-11-11T10:00:00.000Z",
+   "fieldData": {
+    "name": "label 1",
+    "slug": "meeting-1",
+    "group": "g1",
+    "day": "opt-mon",
+    "start-time": "19:00",
+    "end-time": "20:00",
+    "types": "Open, Discussion",
+    "hide-from-meeting-finder": false,
+    "no-online-option": false
+   }
+  },
+  {
+   "id": "m2",
+   "isDraft": true,
+   "isArchived": false,
+   "lastUpdated": "2026-11-11T10:00:00.000Z",
+   "fieldData": {
+    "name": "label 2",
+    "slug": "meeting-2",
+    "group": "g1",
+    "day": "opt-fri",
+    "start-time": "19:00",
+    "end-time": "20:00",
+    "types": "Closed, Big Book, Unknown Type, Online Meeting, Chair's Choice",
+    "hide-from-meeting-finder": false,
+    "no-online-option": false,
+    "display-name": "Women's Meeting",
+    "notes": "<p>Bring a <i>book</i>&nbsp;please</p>"
+   }
+  },
+  {
+   "id": "m3",
+   "isDraft": true,
+   "isArchived": false,
+   "lastUpdated": "2026-11-11T10:00:00.000Z",
+   "fieldData": {
+    "name": "label 3",
+    "slug": "meeting-3",
+    "group": "g2",
+    "day": "opt-mon",
+    "start-time": "19:00",
+    "end-time": "20:00",
+    "types": "Open, Discussion",
+    "hide-from-meeting-finder": false,
+    "no-online-option": false
+   }
+  },
+  {
+   "id": "m4",
+   "isDraft": true,
+   "isArchived": false,
+   "lastUpdated": "2026-11-11T10:00:00.000Z",
+   "fieldData": {
+    "name": "label 4",
+    "slug": "meeting-4",
+    "group": "g2",
+    "day": "opt-mon",
+    "start-time": "19:00",
+    "end-time": "20:00",
+    "types": "Open, Discussion",
+    "hide-from-meeting-finder": false,
+    "no-online-option": false,
+    "conference-url-override": "https://zoom.us/j/222"
+   }
+  },
+  {
+   "id": "m5",
+   "isDraft": true,
+   "isArchived": false,
+   "lastUpdated": "2026-11-11T10:00:00.000Z",
+   "fieldData": {
+    "name": "label 5",
+    "slug": "meeting-5",
+    "group": "g2",
+    "day": "opt-mon",
+    "start-time": "19:00",
+    "end-time": "20:00",
+    "types": "Open, Discussion",
+    "hide-from-meeting-finder": false,
+    "no-online-option": true
+   }
+  },
+  {
+   "id": "m6",
+   "isDraft": true,
+   "isArchived": false,
+   "lastUpdated": "2026-11-11T10:00:00.000Z",
+   "fieldData": {
+    "name": "label 6",
+    "slug": "meeting-6",
+    "group": "g2",
+    "day": "opt-mon",
+    "start-time": "19:00",
+    "end-time": "20:00",
+    "types": "Open, Discussion",
+    "hide-from-meeting-finder": false,
+    "no-online-option": false,
+    "conference-url-notes-override": "<p>Other notes</p>"
+   }
+  },
+  {
+   "id": "m7",
+   "isDraft": true,
+   "isArchived": false,
+   "lastUpdated": "2026-11-11T10:00:00.000Z",
+   "fieldData": {
+    "name": "label 7",
+    "slug": "meeting-7",
+    "group": "g3",
+    "day": "opt-sun",
+    "start-time": "19:00",
+    "end-time": "20:00",
+    "types": "Open, Discussion",
+    "hide-from-meeting-finder": false,
+    "no-online-option": false
+   }
+  },
+  {
+   "id": "m8",
+   "isDraft": true,
+   "isArchived": false,
+   "lastUpdated": "2026-11-11T10:00:00.000Z",
+   "fieldData": {
+    "name": "label 8",
+    "slug": "meeting-8",
+    "group": "g4",
+    "day": "opt-mon",
+    "start-time": "19:00",
+    "end-time": "20:00",
+    "types": "Open, Discussion",
+    "hide-from-meeting-finder": false,
+    "no-online-option": false
+   }
+  },
+  {
+   "id": "m9",
+   "isDraft": true,
+   "isArchived": false,
+   "lastUpdated": "2026-11-11T10:00:00.000Z",
+   "fieldData": {
+    "name": "label 9",
+    "slug": "meeting-9",
+    "group": "g5",
+    "day": "opt-mon",
+    "start-time": "19:00",
+    "end-time": "20:00",
+    "types": "Open, Discussion",
+    "hide-from-meeting-finder": false,
+    "no-online-option": false
+   }
+  },
+  {
+   "id": "m10",
+   "isDraft": true,
+   "isArchived": false,
+   "lastUpdated": "2026-11-11T10:00:00.000Z",
+   "fieldData": {
+    "name": "label 10",
+    "slug": "meeting-10",
+    "group": "g1",
+    "day": "opt-mon",
+    "start-time": "19:00",
+    "end-time": "20:00",
+    "types": "Open, Discussion",
+    "hide-from-meeting-finder": true,
+    "no-online-option": false
+   }
+  },
+  {
+   "id": "m11",
+   "isDraft": true,
+   "isArchived": true,
+   "lastUpdated": "2026-11-11T10:00:00.000Z",
+   "fieldData": {
+    "name": "label 11",
+    "slug": "meeting-11",
+    "group": "g1",
+    "day": "opt-mon",
+    "start-time": "19:00",
+    "end-time": "20:00",
+    "types": "Open, Discussion",
+    "hide-from-meeting-finder": false,
+    "no-online-option": false
+   }
+  },
+  {
+   "id": "m12",
+   "isDraft": true,
+   "isArchived": false,
+   "lastUpdated": "2026-11-11T10:00:00.000Z",
+   "fieldData": {
+    "name": "label 12",
+    "slug": "meeting-12",
+    "group": "missing-group",
+    "day": "opt-mon",
+    "start-time": "19:00",
+    "end-time": "20:00",
+    "types": "Open, Discussion",
+    "hide-from-meeting-finder": false,
+    "no-online-option": false
+   }
+  },
+  {
+   "id": "m13",
+   "isDraft": true,
+   "isArchived": false,
+   "lastUpdated": "2026-11-11T10:00:00.000Z",
+   "fieldData": {
+    "name": "label 13",
+    "slug": "meeting-13",
+    "group": "g1",
+    "day": "not-an-option",
+    "start-time": "19:00",
+    "end-time": "20:00",
+    "types": "Open, Discussion",
+    "hide-from-meeting-finder": false,
+    "no-online-option": false
+   }
+  },
+  {
+   "id": "m14",
+   "isDraft": true,
+   "isArchived": false,
+   "lastUpdated": "2026-11-11T10:00:00.000Z",
+   "fieldData": {
+    "name": "label 14",
+    "slug": "meeting-14",
+    "group": "g1",
+    "day": "opt-mon",
+    "start-time": "19:00",
+    "end-time": "20:00",
+    "types": "Open, Discussion",
+    "hide-from-meeting-finder": false,
+    "no-online-option": false,
+    "starts-on": "2026-11-13T05:00:00.000Z"
+   }
+  },
+  {
+   "id": "m15",
+   "isDraft": true,
+   "isArchived": false,
+   "lastUpdated": "2026-11-11T10:00:00.000Z",
+   "fieldData": {
+    "name": "label 15",
+    "slug": "meeting-15",
+    "group": "g1",
+    "day": "opt-mon",
+    "start-time": "19:00",
+    "end-time": "20:00",
+    "types": "Open, Discussion",
+    "hide-from-meeting-finder": false,
+    "no-online-option": false,
+    "starts-on": "2026-11-12T05:00:00.000Z"
+   }
+  },
+  {
+   "id": "m16",
+   "isDraft": true,
+   "isArchived": false,
+   "lastUpdated": "2026-11-11T10:00:00.000Z",
+   "fieldData": {
+    "name": "label 16",
+    "slug": "meeting-16",
+    "group": "g1",
+    "day": "opt-mon",
+    "start-time": "19:00",
+    "end-time": "20:00",
+    "types": "Open, Discussion",
+    "hide-from-meeting-finder": false,
+    "no-online-option": false,
+    "ends-on": "2026-11-12T05:00:00.000Z"
+   }
+  },
+  {
+   "id": "m17",
+   "isDraft": true,
+   "isArchived": false,
+   "lastUpdated": "2026-11-11T10:00:00.000Z",
+   "fieldData": {
+    "name": "label 17",
+    "slug": "meeting-17",
+    "group": "g1",
+    "day": "opt-mon",
+    "start-time": "19:00",
+    "end-time": "20:00",
+    "types": "Open, Discussion",
+    "hide-from-meeting-finder": false,
+    "no-online-option": false,
+    "ends-on": "2026-11-11T05:00:00.000Z"
+   }
+  },
+  {
+   "id": "m18",
+   "isDraft": true,
+   "isArchived": false,
+   "lastUpdated": "2026-11-11T10:00:00.000Z",
+   "fieldData": {
+    "name": "label 18",
+    "slug": "meeting-18",
+    "group": "g6",
+    "day": "opt-sat",
+    "start-time": "19:00",
+    "end-time": null,
+    "types": "Open, Discussion",
+    "hide-from-meeting-finder": false,
+    "no-online-option": false
+   }
+  },
+  {
+   "id": "m19",
+   "isDraft": true,
+   "isArchived": false,
+   "lastUpdated": "2026-11-11T10:00:00.000Z",
+   "fieldData": {
+    "name": "label 19",
+    "slug": "meeting-19",
+    "group": "g7",
+    "day": "opt-wed",
+    "start-time": "19:00",
+    "end-time": "20:00",
+    "types": "Open, Discussion",
+    "hide-from-meeting-finder": false,
+    "no-online-option": false
+   }
+  },
+  {
+   "id": "m20",
+   "isDraft": true,
+   "isArchived": false,
+   "lastUpdated": "2026-11-25T08:30:15.123Z",
+   "fieldData": {
+    "name": "label 20",
+    "slug": "meeting-20",
+    "group": "g1",
+    "day": "opt-mon",
+    "start-time": "19:00",
+    "end-time": "20:00",
+    "types": "Open, Discussion",
+    "hide-from-meeting-finder": false,
+    "no-online-option": false
+   }
+  }
+ ],
+ "dayOptions": {
+  "opt-sun": "Sunday",
+  "opt-mon": "Monday",
+  "opt-tue": "Tuesday",
+  "opt-wed": "Wednesday",
+  "opt-thu": "Thursday",
+  "opt-fri": "Friday",
+  "opt-sat": "Saturday"
+ },
+ "cases": [
+  {
+   "today": "2026-11-12",
+   "includeDrafts": true,
+   "expected": [
+    {
+     "slug": "meeting-1",
+     "name": "Group 1",
+     "day": 1,
+     "time": "19:00",
+     "end_time": "20:00",
+     "timezone": "America/Winnipeg",
+     "types": [
+      "O",
+      "D"
+     ],
+     "location": "Hall",
+     "formatted_address": "1 Test St, Winnipeg, MB R3C 0A1, Canada",
+     "region": "Winnipeg",
+     "sub_region": null,
+     "latitude": 49.9,
+     "longitude": -97.1,
+     "approximate": "no",
+     "notes": null,
+     "location_notes": null,
+     "group": "Group 1",
+     "group_notes": null,
+     "url": null,
+     "conference_url": null,
+     "conference_url_notes": null,
+     "updated": "2026-11-11 10:00:00"
+    },
+    {
+     "slug": "meeting-2",
+     "name": "Women's Meeting",
+     "day": 5,
+     "time": "19:00",
+     "end_time": "20:00",
+     "timezone": "America/Winnipeg",
+     "types": [
+      "C",
+      "B",
+      "Unknown Type"
+     ],
+     "location": "Hall",
+     "formatted_address": "1 Test St, Winnipeg, MB R3C 0A1, Canada",
+     "region": "Winnipeg",
+     "sub_region": null,
+     "latitude": 49.9,
+     "longitude": -97.1,
+     "approximate": "no",
+     "notes": "Bring a book please",
+     "location_notes": null,
+     "group": "Group 1",
+     "group_notes": null,
+     "url": null,
+     "conference_url": null,
+     "conference_url_notes": null,
+     "updated": "2026-11-11 10:00:00"
+    },
+    {
+     "slug": "meeting-3",
+     "name": "Group 2",
+     "day": 1,
+     "time": "19:00",
+     "end_time": "20:00",
+     "timezone": "America/Winnipeg",
+     "types": [
+      "O",
+      "D"
+     ],
+     "location": "Hall",
+     "formatted_address": "1 Test St, Winnipeg, MB R3C 0A1, Canada",
+     "region": "Winnipeg",
+     "sub_region": null,
+     "latitude": 49.9,
+     "longitude": -97.1,
+     "approximate": "yes",
+     "notes": null,
+     "location_notes": null,
+     "group": "Group 2",
+     "group_notes": null,
+     "url": null,
+     "conference_url": "https://zoom.us/j/111",
+     "conference_url_notes": "ID 111",
+     "updated": "2026-11-11 10:00:00"
+    },
+    {
+     "slug": "meeting-4",
+     "name": "Group 2",
+     "day": 1,
+     "time": "19:00",
+     "end_time": "20:00",
+     "timezone": "America/Winnipeg",
+     "types": [
+      "O",
+      "D"
+     ],
+     "location": "Hall",
+     "formatted_address": "1 Test St, Winnipeg, MB R3C 0A1, Canada",
+     "region": "Winnipeg",
+     "sub_region": null,
+     "latitude": 49.9,
+     "longitude": -97.1,
+     "approximate": "yes",
+     "notes": null,
+     "location_notes": null,
+     "group": "Group 2",
+     "group_notes": null,
+     "url": null,
+     "conference_url": "https://zoom.us/j/222",
+     "conference_url_notes": "ID 111",
+     "updated": "2026-11-11 10:00:00"
+    },
+    {
+     "slug": "meeting-5",
+     "name": "Group 2",
+     "day": 1,
+     "time": "19:00",
+     "end_time": "20:00",
+     "timezone": "America/Winnipeg",
+     "types": [
+      "O",
+      "D"
+     ],
+     "location": "Hall",
+     "formatted_address": "1 Test St, Winnipeg, MB R3C 0A1, Canada",
+     "region": "Winnipeg",
+     "sub_region": null,
+     "latitude": 49.9,
+     "longitude": -97.1,
+     "approximate": "no",
+     "notes": null,
+     "location_notes": null,
+     "group": "Group 2",
+     "group_notes": null,
+     "url": null,
+     "conference_url": null,
+     "conference_url_notes": null,
+     "updated": "2026-11-11 10:00:00"
+    },
+    {
+     "slug": "meeting-6",
+     "name": "Group 2",
+     "day": 1,
+     "time": "19:00",
+     "end_time": "20:00",
+     "timezone": "America/Winnipeg",
+     "types": [
+      "O",
+      "D"
+     ],
+     "location": "Hall",
+     "formatted_address": "1 Test St, Winnipeg, MB R3C 0A1, Canada",
+     "region": "Winnipeg",
+     "sub_region": null,
+     "latitude": 49.9,
+     "longitude": -97.1,
+     "approximate": "yes",
+     "notes": null,
+     "location_notes": null,
+     "group": "Group 2",
+     "group_notes": null,
+     "url": null,
+     "conference_url": "https://zoom.us/j/111",
+     "conference_url_notes": "Other notes",
+     "updated": "2026-11-11 10:00:00"
+    },
+    {
+     "slug": "meeting-7",
+     "name": "Group 3",
+     "day": 0,
+     "time": "19:00",
+     "end_time": "20:00",
+     "timezone": "America/Winnipeg",
+     "types": [
+      "O",
+      "D"
+     ],
+     "location": "Hall",
+     "formatted_address": "1 Test St, Winnipeg, MB R3C 0A1, Canada",
+     "region": "Winnipeg",
+     "sub_region": null,
+     "latitude": 49.9,
+     "longitude": -97.1,
+     "approximate": "no",
+     "notes": null,
+     "location_notes": null,
+     "group": null,
+     "group_notes": null,
+     "url": null,
+     "conference_url": null,
+     "conference_url_notes": null,
+     "updated": "2026-11-11 10:00:00",
+     "entity": null,
+     "entity_email": "g3@example.org",
+     "entity_phone": "+12045550100"
+    },
+    {
+     "slug": "meeting-15",
+     "name": "Group 1",
+     "day": 1,
+     "time": "19:00",
+     "end_time": "20:00",
+     "timezone": "America/Winnipeg",
+     "types": [
+      "O",
+      "D"
+     ],
+     "location": "Hall",
+     "formatted_address": "1 Test St, Winnipeg, MB R3C 0A1, Canada",
+     "region": "Winnipeg",
+     "sub_region": null,
+     "latitude": 49.9,
+     "longitude": -97.1,
+     "approximate": "no",
+     "notes": null,
+     "location_notes": null,
+     "group": "Group 1",
+     "group_notes": null,
+     "url": null,
+     "conference_url": null,
+     "conference_url_notes": null,
+     "updated": "2026-11-11 10:00:00"
+    },
+    {
+     "slug": "meeting-16",
+     "name": "Group 1",
+     "day": 1,
+     "time": "19:00",
+     "end_time": "20:00",
+     "timezone": "America/Winnipeg",
+     "types": [
+      "O",
+      "D"
+     ],
+     "location": "Hall",
+     "formatted_address": "1 Test St, Winnipeg, MB R3C 0A1, Canada",
+     "region": "Winnipeg",
+     "sub_region": null,
+     "latitude": 49.9,
+     "longitude": -97.1,
+     "approximate": "no",
+     "notes": null,
+     "location_notes": null,
+     "group": "Group 1",
+     "group_notes": null,
+     "url": null,
+     "conference_url": null,
+     "conference_url_notes": null,
+     "updated": "2026-11-11 10:00:00"
+    },
+    {
+     "slug": "meeting-18",
+     "name": "Group 6",
+     "day": 6,
+     "time": "19:00",
+     "end_time": null,
+     "timezone": "America/Winnipeg",
+     "types": [
+      "O",
+      "D"
+     ],
+     "location": "Hall",
+     "formatted_address": "1 Test St, Winnipeg, MB R3C 0A1, Canada",
+     "region": "Winnipeg",
+     "sub_region": "Brandon",
+     "latitude": null,
+     "longitude": null,
+     "approximate": "no",
+     "notes": null,
+     "location_notes": "Side door",
+     "group": "Group 6",
+     "group_notes": "Group notes & more",
+     "url": "https://example.org",
+     "conference_url": null,
+     "conference_url_notes": null,
+     "updated": "2026-11-11 10:00:00",
+     "entity": "Group 6",
+     "entity_email": "g6@example.org",
+     "entity_phone": "+12045550199"
+    },
+    {
+     "slug": "meeting-19",
+     "name": "Group 7",
+     "day": 3,
+     "time": "19:00",
+     "end_time": "20:00",
+     "timezone": "America/Winnipeg",
+     "types": [
+      "O",
+      "D"
+     ],
+     "location": "Hall",
+     "formatted_address": "1 Test St, Winnipeg, MB R3C 0A1, Canada",
+     "region": "Winnipeg",
+     "sub_region": null,
+     "latitude": 49.9,
+     "longitude": -97.1,
+     "approximate": "no",
+     "notes": null,
+     "location_notes": null,
+     "group": "Group 7",
+     "group_notes": null,
+     "url": null,
+     "conference_url": null,
+     "conference_url_notes": null,
+     "updated": "2026-11-20 10:00:00"
+    },
+    {
+     "slug": "meeting-20",
+     "name": "Group 1",
+     "day": 1,
+     "time": "19:00",
+     "end_time": "20:00",
+     "timezone": "America/Winnipeg",
+     "types": [
+      "O",
+      "D"
+     ],
+     "location": "Hall",
+     "formatted_address": "1 Test St, Winnipeg, MB R3C 0A1, Canada",
+     "region": "Winnipeg",
+     "sub_region": null,
+     "latitude": 49.9,
+     "longitude": -97.1,
+     "approximate": "no",
+     "notes": null,
+     "location_notes": null,
+     "group": "Group 1",
+     "group_notes": null,
+     "url": null,
+     "conference_url": null,
+     "conference_url_notes": null,
+     "updated": "2026-11-25 08:30:15"
+    }
+   ],
+   "expectedSkipped": [
+    [
+     "meeting-12",
+     "group missing"
+    ],
+    [
+     "meeting-13",
+     "no day"
+    ]
+   ]
+  },
+  {
+   "today": "2026-11-12",
+   "includeDrafts": false,
+   "expected": [],
+   "expectedSkipped": []
+  },
+  {
+   "today": "2026-11-12",
+   "includeDrafts": false,
+   "variant": "mixed-drafts",
+   "groups": [
+    {
+     "id": "g1",
+     "isDraft": false,
+     "isArchived": false,
+     "lastUpdated": "2026-11-10T10:00:00.000Z",
+     "fieldData": {
+      "name": "Group 1",
+      "slug": "group-1",
+      "location": "Hall",
+      "address": "1 Test St, Winnipeg, MB R3C 0A1, Canada",
+      "region": "Winnipeg",
+      "latitude": "49.9",
+      "longitude": "-97.1",
+      "timezone": "America/Winnipeg",
+      "hide-from-meeting-finder": false,
+      "hide-group-name": false
+     }
+    },
+    {
+     "id": "g2",
+     "isDraft": true,
+     "isArchived": false,
+     "lastUpdated": "2026-11-10T10:00:00.000Z",
+     "fieldData": {
+      "name": "Group 2",
+      "slug": "group-2",
+      "location": "Hall",
+      "address": "1 Test St, Winnipeg, MB R3C 0A1, Canada",
+      "region": "Winnipeg",
+      "latitude": "49.9",
+      "longitude": "-97.1",
+      "timezone": "America/Winnipeg",
+      "hide-from-meeting-finder": false,
+      "hide-group-name": false,
+      "conference-url": "https://zoom.us/j/111",
+      "conference-url-notes": "<p>ID 111</p>",
+      "approximate": "yes"
+     }
+    },
+    {
+     "id": "g3",
+     "isDraft": false,
+     "isArchived": false,
+     "lastUpdated": "2026-11-10T10:00:00.000Z",
+     "fieldData": {
+      "name": "Group 3",
+      "slug": "group-3",
+      "location": "Hall",
+      "address": "1 Test St, Winnipeg, MB R3C 0A1, Canada",
+      "region": "Winnipeg",
+      "latitude": "49.9",
+      "longitude": "-97.1",
+      "timezone": "America/Winnipeg",
+      "hide-from-meeting-finder": false,
+      "hide-group-name": true,
+      "email": "g3@example.org",
+      "phone": "204 555 0100"
+     }
+    },
+    {
+     "id": "g4",
+     "isDraft": false,
+     "isArchived": false,
+     "lastUpdated": "2026-11-10T10:00:00.000Z",
+     "fieldData": {
+      "name": "Group 4",
+      "slug": "group-4",
+      "location": "Hall",
+      "address": "1 Test St, Winnipeg, MB R3C 0A1, Canada",
+      "region": "Winnipeg",
+      "latitude": "49.9",
+      "longitude": "-97.1",
+      "timezone": "America/Winnipeg",
+      "hide-from-meeting-finder": true,
+      "hide-group-name": false
+     }
+    },
+    {
+     "id": "g5",
+     "isDraft": false,
+     "isArchived": true,
+     "lastUpdated": "2026-11-10T10:00:00.000Z",
+     "fieldData": {
+      "name": "Group 5",
+      "slug": "group-5",
+      "location": "Hall",
+      "address": "1 Test St, Winnipeg, MB R3C 0A1, Canada",
+      "region": "Winnipeg",
+      "latitude": "49.9",
+      "longitude": "-97.1",
+      "timezone": "America/Winnipeg",
+      "hide-from-meeting-finder": false,
+      "hide-group-name": false
+     }
+    },
+    {
+     "id": "g6",
+     "isDraft": false,
+     "isArchived": false,
+     "lastUpdated": "2026-11-10T10:00:00.000Z",
+     "fieldData": {
+      "name": "Group 6",
+      "slug": "group-6",
+      "location": "Hall",
+      "address": "1 Test St, Winnipeg, MB R3C 0A1, Canada",
+      "region": "Winnipeg",
+      "latitude": null,
+      "longitude": null,
+      "timezone": "America/Winnipeg",
+      "hide-from-meeting-finder": false,
+      "hide-group-name": false,
+      "email": "g6@example.org",
+      "phone": "1-204-555-0199",
+      "website": "https://example.org",
+      "group-notes": "<p>Group  <b>notes</b> &amp; more</p>",
+      "location-notes": "<p>Side door</p>",
+      "sub-region": "Brandon"
+     }
+    },
+    {
+     "id": "g7",
+     "isDraft": false,
+     "isArchived": false,
+     "lastUpdated": "2026-11-20T10:00:00.000Z",
+     "fieldData": {
+      "name": "Group 7",
+      "slug": "group-7",
+      "location": "Hall",
+      "address": "1 Test St, Winnipeg, MB R3C 0A1, Canada",
+      "region": "Winnipeg",
+      "latitude": "49.9",
+      "longitude": "-97.1",
+      "timezone": "America/Winnipeg",
+      "hide-from-meeting-finder": false,
+      "hide-group-name": false
+     }
+    }
+   ],
+   "meetings": [
+    {
+     "id": "m1",
+     "isDraft": true,
+     "isArchived": false,
+     "lastUpdated": "2026-11-11T10:00:00.000Z",
+     "fieldData": {
+      "name": "label 1",
+      "slug": "meeting-1",
+      "group": "g1",
+      "day": "opt-mon",
+      "start-time": "19:00",
+      "end-time": "20:00",
+      "types": "Open, Discussion",
+      "hide-from-meeting-finder": false,
+      "no-online-option": false
+     }
+    },
+    {
+     "id": "m2",
+     "isDraft": false,
+     "isArchived": false,
+     "lastUpdated": "2026-11-11T10:00:00.000Z",
+     "fieldData": {
+      "name": "label 2",
+      "slug": "meeting-2",
+      "group": "g1",
+      "day": "opt-fri",
+      "start-time": "19:00",
+      "end-time": "20:00",
+      "types": "Closed, Big Book, Unknown Type, Online Meeting, Chair's Choice",
+      "hide-from-meeting-finder": false,
+      "no-online-option": false,
+      "display-name": "Women's Meeting",
+      "notes": "<p>Bring a <i>book</i>&nbsp;please</p>"
+     }
+    },
+    {
+     "id": "m3",
+     "isDraft": false,
+     "isArchived": false,
+     "lastUpdated": "2026-11-11T10:00:00.000Z",
+     "fieldData": {
+      "name": "label 3",
+      "slug": "meeting-3",
+      "group": "g2",
+      "day": "opt-mon",
+      "start-time": "19:00",
+      "end-time": "20:00",
+      "types": "Open, Discussion",
+      "hide-from-meeting-finder": false,
+      "no-online-option": false
+     }
+    },
+    {
+     "id": "m4",
+     "isDraft": false,
+     "isArchived": false,
+     "lastUpdated": "2026-11-11T10:00:00.000Z",
+     "fieldData": {
+      "name": "label 4",
+      "slug": "meeting-4",
+      "group": "g2",
+      "day": "opt-mon",
+      "start-time": "19:00",
+      "end-time": "20:00",
+      "types": "Open, Discussion",
+      "hide-from-meeting-finder": false,
+      "no-online-option": false,
+      "conference-url-override": "https://zoom.us/j/222"
+     }
+    },
+    {
+     "id": "m5",
+     "isDraft": false,
+     "isArchived": false,
+     "lastUpdated": "2026-11-11T10:00:00.000Z",
+     "fieldData": {
+      "name": "label 5",
+      "slug": "meeting-5",
+      "group": "g2",
+      "day": "opt-mon",
+      "start-time": "19:00",
+      "end-time": "20:00",
+      "types": "Open, Discussion",
+      "hide-from-meeting-finder": false,
+      "no-online-option": true
+     }
+    },
+    {
+     "id": "m6",
+     "isDraft": false,
+     "isArchived": false,
+     "lastUpdated": "2026-11-11T10:00:00.000Z",
+     "fieldData": {
+      "name": "label 6",
+      "slug": "meeting-6",
+      "group": "g2",
+      "day": "opt-mon",
+      "start-time": "19:00",
+      "end-time": "20:00",
+      "types": "Open, Discussion",
+      "hide-from-meeting-finder": false,
+      "no-online-option": false,
+      "conference-url-notes-override": "<p>Other notes</p>"
+     }
+    },
+    {
+     "id": "m7",
+     "isDraft": true,
+     "isArchived": false,
+     "lastUpdated": "2026-11-11T10:00:00.000Z",
+     "fieldData": {
+      "name": "label 7",
+      "slug": "meeting-7",
+      "group": "g3",
+      "day": "opt-sun",
+      "start-time": "19:00",
+      "end-time": "20:00",
+      "types": "Open, Discussion",
+      "hide-from-meeting-finder": false,
+      "no-online-option": false
+     }
+    },
+    {
+     "id": "m8",
+     "isDraft": false,
+     "isArchived": false,
+     "lastUpdated": "2026-11-11T10:00:00.000Z",
+     "fieldData": {
+      "name": "label 8",
+      "slug": "meeting-8",
+      "group": "g4",
+      "day": "opt-mon",
+      "start-time": "19:00",
+      "end-time": "20:00",
+      "types": "Open, Discussion",
+      "hide-from-meeting-finder": false,
+      "no-online-option": false
+     }
+    },
+    {
+     "id": "m9",
+     "isDraft": false,
+     "isArchived": false,
+     "lastUpdated": "2026-11-11T10:00:00.000Z",
+     "fieldData": {
+      "name": "label 9",
+      "slug": "meeting-9",
+      "group": "g5",
+      "day": "opt-mon",
+      "start-time": "19:00",
+      "end-time": "20:00",
+      "types": "Open, Discussion",
+      "hide-from-meeting-finder": false,
+      "no-online-option": false
+     }
+    },
+    {
+     "id": "m10",
+     "isDraft": false,
+     "isArchived": false,
+     "lastUpdated": "2026-11-11T10:00:00.000Z",
+     "fieldData": {
+      "name": "label 10",
+      "slug": "meeting-10",
+      "group": "g1",
+      "day": "opt-mon",
+      "start-time": "19:00",
+      "end-time": "20:00",
+      "types": "Open, Discussion",
+      "hide-from-meeting-finder": true,
+      "no-online-option": false
+     }
+    },
+    {
+     "id": "m11",
+     "isDraft": false,
+     "isArchived": true,
+     "lastUpdated": "2026-11-11T10:00:00.000Z",
+     "fieldData": {
+      "name": "label 11",
+      "slug": "meeting-11",
+      "group": "g1",
+      "day": "opt-mon",
+      "start-time": "19:00",
+      "end-time": "20:00",
+      "types": "Open, Discussion",
+      "hide-from-meeting-finder": false,
+      "no-online-option": false
+     }
+    },
+    {
+     "id": "m12",
+     "isDraft": false,
+     "isArchived": false,
+     "lastUpdated": "2026-11-11T10:00:00.000Z",
+     "fieldData": {
+      "name": "label 12",
+      "slug": "meeting-12",
+      "group": "missing-group",
+      "day": "opt-mon",
+      "start-time": "19:00",
+      "end-time": "20:00",
+      "types": "Open, Discussion",
+      "hide-from-meeting-finder": false,
+      "no-online-option": false
+     }
+    },
+    {
+     "id": "m13",
+     "isDraft": false,
+     "isArchived": false,
+     "lastUpdated": "2026-11-11T10:00:00.000Z",
+     "fieldData": {
+      "name": "label 13",
+      "slug": "meeting-13",
+      "group": "g1",
+      "day": "not-an-option",
+      "start-time": "19:00",
+      "end-time": "20:00",
+      "types": "Open, Discussion",
+      "hide-from-meeting-finder": false,
+      "no-online-option": false
+     }
+    },
+    {
+     "id": "m14",
+     "isDraft": false,
+     "isArchived": false,
+     "lastUpdated": "2026-11-11T10:00:00.000Z",
+     "fieldData": {
+      "name": "label 14",
+      "slug": "meeting-14",
+      "group": "g1",
+      "day": "opt-mon",
+      "start-time": "19:00",
+      "end-time": "20:00",
+      "types": "Open, Discussion",
+      "hide-from-meeting-finder": false,
+      "no-online-option": false,
+      "starts-on": "2026-11-13T05:00:00.000Z"
+     }
+    },
+    {
+     "id": "m15",
+     "isDraft": false,
+     "isArchived": false,
+     "lastUpdated": "2026-11-11T10:00:00.000Z",
+     "fieldData": {
+      "name": "label 15",
+      "slug": "meeting-15",
+      "group": "g1",
+      "day": "opt-mon",
+      "start-time": "19:00",
+      "end-time": "20:00",
+      "types": "Open, Discussion",
+      "hide-from-meeting-finder": false,
+      "no-online-option": false,
+      "starts-on": "2026-11-12T05:00:00.000Z"
+     }
+    },
+    {
+     "id": "m16",
+     "isDraft": false,
+     "isArchived": false,
+     "lastUpdated": "2026-11-11T10:00:00.000Z",
+     "fieldData": {
+      "name": "label 16",
+      "slug": "meeting-16",
+      "group": "g1",
+      "day": "opt-mon",
+      "start-time": "19:00",
+      "end-time": "20:00",
+      "types": "Open, Discussion",
+      "hide-from-meeting-finder": false,
+      "no-online-option": false,
+      "ends-on": "2026-11-12T05:00:00.000Z"
+     }
+    },
+    {
+     "id": "m17",
+     "isDraft": false,
+     "isArchived": false,
+     "lastUpdated": "2026-11-11T10:00:00.000Z",
+     "fieldData": {
+      "name": "label 17",
+      "slug": "meeting-17",
+      "group": "g1",
+      "day": "opt-mon",
+      "start-time": "19:00",
+      "end-time": "20:00",
+      "types": "Open, Discussion",
+      "hide-from-meeting-finder": false,
+      "no-online-option": false,
+      "ends-on": "2026-11-11T05:00:00.000Z"
+     }
+    },
+    {
+     "id": "m18",
+     "isDraft": false,
+     "isArchived": false,
+     "lastUpdated": "2026-11-11T10:00:00.000Z",
+     "fieldData": {
+      "name": "label 18",
+      "slug": "meeting-18",
+      "group": "g6",
+      "day": "opt-sat",
+      "start-time": "19:00",
+      "end-time": null,
+      "types": "Open, Discussion",
+      "hide-from-meeting-finder": false,
+      "no-online-option": false
+     }
+    },
+    {
+     "id": "m19",
+     "isDraft": false,
+     "isArchived": false,
+     "lastUpdated": "2026-11-11T10:00:00.000Z",
+     "fieldData": {
+      "name": "label 19",
+      "slug": "meeting-19",
+      "group": "g7",
+      "day": "opt-wed",
+      "start-time": "19:00",
+      "end-time": "20:00",
+      "types": "Open, Discussion",
+      "hide-from-meeting-finder": false,
+      "no-online-option": false
+     }
+    },
+    {
+     "id": "m20",
+     "isDraft": false,
+     "isArchived": false,
+     "lastUpdated": "2026-11-25T08:30:15.123Z",
+     "fieldData": {
+      "name": "label 20",
+      "slug": "meeting-20",
+      "group": "g1",
+      "day": "opt-mon",
+      "start-time": "19:00",
+      "end-time": "20:00",
+      "types": "Open, Discussion",
+      "hide-from-meeting-finder": false,
+      "no-online-option": false
+     }
+    }
+   ],
+   "expected": [
+    {
+     "slug": "meeting-2",
+     "name": "Women's Meeting",
+     "day": 5,
+     "time": "19:00",
+     "end_time": "20:00",
+     "timezone": "America/Winnipeg",
+     "types": [
+      "C",
+      "B",
+      "Unknown Type"
+     ],
+     "location": "Hall",
+     "formatted_address": "1 Test St, Winnipeg, MB R3C 0A1, Canada",
+     "region": "Winnipeg",
+     "sub_region": null,
+     "latitude": 49.9,
+     "longitude": -97.1,
+     "approximate": "no",
+     "notes": "Bring a book please",
+     "location_notes": null,
+     "group": "Group 1",
+     "group_notes": null,
+     "url": null,
+     "conference_url": null,
+     "conference_url_notes": null,
+     "updated": "2026-11-11 10:00:00"
+    },
+    {
+     "slug": "meeting-15",
+     "name": "Group 1",
+     "day": 1,
+     "time": "19:00",
+     "end_time": "20:00",
+     "timezone": "America/Winnipeg",
+     "types": [
+      "O",
+      "D"
+     ],
+     "location": "Hall",
+     "formatted_address": "1 Test St, Winnipeg, MB R3C 0A1, Canada",
+     "region": "Winnipeg",
+     "sub_region": null,
+     "latitude": 49.9,
+     "longitude": -97.1,
+     "approximate": "no",
+     "notes": null,
+     "location_notes": null,
+     "group": "Group 1",
+     "group_notes": null,
+     "url": null,
+     "conference_url": null,
+     "conference_url_notes": null,
+     "updated": "2026-11-11 10:00:00"
+    },
+    {
+     "slug": "meeting-16",
+     "name": "Group 1",
+     "day": 1,
+     "time": "19:00",
+     "end_time": "20:00",
+     "timezone": "America/Winnipeg",
+     "types": [
+      "O",
+      "D"
+     ],
+     "location": "Hall",
+     "formatted_address": "1 Test St, Winnipeg, MB R3C 0A1, Canada",
+     "region": "Winnipeg",
+     "sub_region": null,
+     "latitude": 49.9,
+     "longitude": -97.1,
+     "approximate": "no",
+     "notes": null,
+     "location_notes": null,
+     "group": "Group 1",
+     "group_notes": null,
+     "url": null,
+     "conference_url": null,
+     "conference_url_notes": null,
+     "updated": "2026-11-11 10:00:00"
+    },
+    {
+     "slug": "meeting-18",
+     "name": "Group 6",
+     "day": 6,
+     "time": "19:00",
+     "end_time": null,
+     "timezone": "America/Winnipeg",
+     "types": [
+      "O",
+      "D"
+     ],
+     "location": "Hall",
+     "formatted_address": "1 Test St, Winnipeg, MB R3C 0A1, Canada",
+     "region": "Winnipeg",
+     "sub_region": "Brandon",
+     "latitude": null,
+     "longitude": null,
+     "approximate": "no",
+     "notes": null,
+     "location_notes": "Side door",
+     "group": "Group 6",
+     "group_notes": "Group notes & more",
+     "url": "https://example.org",
+     "conference_url": null,
+     "conference_url_notes": null,
+     "updated": "2026-11-11 10:00:00",
+     "entity": "Group 6",
+     "entity_email": "g6@example.org",
+     "entity_phone": "+12045550199"
+    },
+    {
+     "slug": "meeting-19",
+     "name": "Group 7",
+     "day": 3,
+     "time": "19:00",
+     "end_time": "20:00",
+     "timezone": "America/Winnipeg",
+     "types": [
+      "O",
+      "D"
+     ],
+     "location": "Hall",
+     "formatted_address": "1 Test St, Winnipeg, MB R3C 0A1, Canada",
+     "region": "Winnipeg",
+     "sub_region": null,
+     "latitude": 49.9,
+     "longitude": -97.1,
+     "approximate": "no",
+     "notes": null,
+     "location_notes": null,
+     "group": "Group 7",
+     "group_notes": null,
+     "url": null,
+     "conference_url": null,
+     "conference_url_notes": null,
+     "updated": "2026-11-20 10:00:00"
+    },
+    {
+     "slug": "meeting-20",
+     "name": "Group 1",
+     "day": 1,
+     "time": "19:00",
+     "end_time": "20:00",
+     "timezone": "America/Winnipeg",
+     "types": [
+      "O",
+      "D"
+     ],
+     "location": "Hall",
+     "formatted_address": "1 Test St, Winnipeg, MB R3C 0A1, Canada",
+     "region": "Winnipeg",
+     "sub_region": null,
+     "latitude": 49.9,
+     "longitude": -97.1,
+     "approximate": "no",
+     "notes": null,
+     "location_notes": null,
+     "group": "Group 1",
+     "group_notes": null,
+     "url": null,
+     "conference_url": null,
+     "conference_url_notes": null,
+     "updated": "2026-11-25 08:30:15"
+    }
+   ],
+   "expectedSkipped": [
+    [
+     "meeting-12",
+     "group missing"
+    ],
+    [
+     "meeting-13",
+     "no day"
+    ]
+   ]
+  }
+ ]
+}
