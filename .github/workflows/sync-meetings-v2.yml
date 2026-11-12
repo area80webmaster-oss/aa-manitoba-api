@@ -1,0 +1,72 @@
+# Hourly parallel-run sync: rebuilds the v2 Groups + Group Meetings
+# collections from the v1 Meetings collection via scripts/sync-meetings-v2.mjs
+# (rules and safety rails documented there). v1 is only ever read.
+#
+# Mode: scripts/sync-meetings-v2.config.json is committed as "dry-run", so
+# pushes and the schedule print the plan and write nothing until that file is
+# changed to "apply" in a reviewed commit. A manual run can pick the mode.
+#
+# The repo and these logs are PUBLIC: the job prints counts, slugs, group keys
+# and field names only — never field values.
+#
+# The schedule only runs on the default branch (main); on meetings-v2 the job
+# runs on pushes to the sync files. :07 keeps it clear of the geocoder at :37,
+# which writes v1 and would otherwise bump items mid-read.
+#
+# Note: GitHub disables cron schedules in repos with no activity for 60 days;
+# any commit re-enables it.
+
+name: Sync meetings v2
+
+on:
+  schedule:
+    - cron: '7 * * * *' # hourly at :07
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'dry-run prints the plan; apply writes to the v2 collections'
+        type: choice
+        options: [dry-run, apply]
+        default: dry-run
+  # Pushing changes to the job itself also runs it (in the committed mode) —
+  # doubles as a manual trigger for accounts whose token can't fire
+  # workflow_dispatch.
+  push:
+    branches: [meetings-v2, main]
+    paths:
+      - 'scripts/sync-meetings-v2.mjs'
+      - 'scripts/sync-meetings-v2.config.json'
+      - 'scripts/lib/meetings-v2-derive.mjs'
+      - 'scripts/lib/meetings-v2-plan.mjs'
+      - 'scripts/test-meetings-v2-derive.mjs'
+      - '.github/workflows/sync-meetings-v2.yml'
+
+# Two runs writing at once could each create the same missing group; queue
+# instead of overlapping, and never cancel a run mid-write.
+concurrency:
+  group: sync-meetings-v2
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      # The write guard and planner tests need no network or private data
+      # (the real-data parity checks skip themselves in CI); a failing guard
+      # stops the job before it can write.
+      - name: Test guard and planner
+        run: node scripts/test-meetings-v2-derive.mjs
+      - name: Sync v2 collections
+        env:
+          WEBFLOW_WRITE_TOKEN: ${{ secrets.WEBFLOW_WRITE_TOKEN }}
+          # Empty on push/schedule, so the committed config decides.
+          SYNC_MODE: ${{ inputs.mode }}
+        run: node scripts/sync-meetings-v2.mjs
