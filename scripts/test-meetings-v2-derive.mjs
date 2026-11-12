@@ -211,10 +211,15 @@ check('every client.write call targets a v2 constant', () => {
 check('pure libs contain no network calls and no v1 ID', () => {
   for (const src of libSrc) assert.ok(!src.includes('fetch(') && !src.includes(V1_ID));
 });
-check('committed config is dry-run, SYNC_MODE overrides it, junk is refused', () => {
-  assert.deepEqual(readJson(join(here, 'sync-meetings-v2.config.json')), { mode: 'dry-run' });
-  assert.equal(resolveMode({}), 'dry-run');
+// The committed mode is a reviewed operational switch (dry-run before the
+// first import, apply once it is trusted), so only its validity is tested.
+check('committed config holds a valid mode, SYNC_MODE overrides it, junk is refused', () => {
+  const committed = readJson(join(here, 'sync-meetings-v2.config.json'));
+  assert.deepEqual(Object.keys(committed), ['mode']);
+  assert.ok(['dry-run', 'apply'].includes(committed.mode));
+  assert.equal(resolveMode({}), committed.mode);
   assert.equal(resolveMode({ SYNC_MODE: 'apply' }), 'apply');
+  assert.equal(resolveMode({ SYNC_MODE: 'dry-run' }), 'dry-run');
   assert.throws(() => resolveMode({ SYNC_MODE: 'yes' }));
 });
 
