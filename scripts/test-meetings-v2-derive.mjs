@@ -16,8 +16,12 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DAYS, migrate } from './lib/meetings-v2-derive.mjs';
-import { GROUP_FIELDS, MEETING_FIELDS, planSync } from './lib/meetings-v2-plan.mjs';
-import { V2_GROUPS_ID, V2_MEETINGS_ID, assertWriteAllowed, resolveMode, runSync, write } from './sync-meetings-v2.mjs';
+import { GROUP_FIELDS, MEETING_FIELDS, logKey, planSync, splitGroupRetirements } from './lib/meetings-v2-plan.mjs';
+import { MIN_ROW_RATIO, compareFeeds, parityProblems, sameValue as paritySame } from './lib/meetings-v2-parity.mjs';
+import {
+  HttpError, V2_GROUPS_ID, V2_MEETINGS_ID, assertWriteAllowed, describeError, fatalMessage, readAllItems,
+  resolveMode, retryAfterMs, runSync, write,
+} from './sync-meetings-v2.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 // Optional real-data checks: the backup and Python outputs hold private
@@ -203,10 +207,13 @@ check('fetch is called in exactly one place, and request() only from get/write/r
   );
   assert.match(functionBody(syncSrc, 'export async function write('), /^export async function write\(method, collectionId, path, body\) \{\s*assertWriteAllowed\(method, collectionId, path, body\);/);
 });
-check('every client.write call targets a v2 constant', () => {
-  const calls = syncSrc.split('\n').filter((l) => l.includes('client.write('));
-  assert.ok(calls.length >= 4);
-  for (const l of calls) assert.match(l, /client\.write\('(POST|PATCH)', (V2_GROUPS_ID|V2_MEETINGS_ID), `\/collections\/\$\{\2\}\/items`/);
+check('client.write is only called from writeOps, and every writeOps call targets a v2 constant', () => {
+  const writeOps = functionBody(syncSrc, 'async function writeOps(');
+  const total = syncSrc.split('client.write(').length - 1;
+  assert.equal(writeOps.split('client.write(').length - 1, total, 'client.write called outside writeOps');
+  const calls = syncSrc.split('\n').filter((l) => /\bwriteOps\(/.test(l) && !l.includes('async function writeOps('));
+  assert.equal(calls.length, 6, `${calls.length} writeOps calls`);
+  for (const l of calls) assert.match(l, /writeOps\('[a-z ]+', '(POST|PATCH)', (V2_GROUPS_ID|V2_MEETINGS_ID), /);
 });
 check('pure libs contain no network calls and no v1 ID', () => {
   for (const src of libSrc) assert.ok(!src.includes('fetch(') && !src.includes(V1_ID));
@@ -224,7 +231,7 @@ check('committed config holds a valid mode, SYNC_MODE overrides it, junk is refu
 });
 
 const okPost = { items: [{ fieldData: { name: 'x' }, isDraft: true, isArchived: false }] };
-const okPatch = { items: [{ id: 'abc', fieldData: { name: 'x' } }] };
+const okPatch = { items: [{ id: 'abc', fieldData: { name: 'x' }, isDraft: true }] };
 const p = (id) => `/collections/${id}/items`;
 check('guard accepts the four legitimate writes', () => {
   for (const id of [V2_GROUPS_ID, V2_MEETINGS_ID]) {
@@ -248,8 +255,13 @@ check('guard refuses published, archived or oversized bodies', () => {
   assert.throws(() => assertWriteAllowed('POST', id, p(id), { items: [{ fieldData: {}, isDraft: false, isArchived: false }] }));
   assert.throws(() => assertWriteAllowed('POST', id, p(id), { items: [{ fieldData: {}, isArchived: false }] }));
   assert.throws(() => assertWriteAllowed('POST', id, p(id), { items: [{ fieldData: {}, isDraft: true, isArchived: true }] }));
-  assert.throws(() => assertWriteAllowed('PATCH', id, p(id), { items: [{ id: 'a', fieldData: {}, isDraft: true }] }));
-  assert.throws(() => assertWriteAllowed('PATCH', id, p(id), { items: [{ id: 'a', fieldData: {}, isArchived: false }] }));
+  // An update must state isDraft:true itself (fix: never rely on the API default).
+  assert.throws(() => assertWriteAllowed('PATCH', id, p(id), { items: [{ id: 'a', fieldData: {} }] }));
+  assert.throws(() => assertWriteAllowed('PATCH', id, p(id), { items: [{ id: 'a', fieldData: {}, isDraft: false }] }));
+  assert.throws(() => assertWriteAllowed('PATCH', id, p(id), { items: [{ id: 'a', fieldData: {}, isDraft: 'true' }] }));
+  assert.throws(() => assertWriteAllowed('PATCH', id, p(id), { items: [{ id: 'a', fieldData: {}, isDraft: true, isArchived: false }] }));
+  assert.throws(() => assertWriteAllowed('PATCH', id, p(id), { items: [{ fieldData: {}, isDraft: true }] }));
+  assert.throws(() => assertWriteAllowed('POST', id, p(id), { items: [{ fieldData: {}, isDraft: true, isArchived: false, id: 'x' }] }));
   assert.throws(() => assertWriteAllowed('PATCH', id, p(id), { items: [] }));
   assert.throws(() => assertWriteAllowed('PATCH', id, p(id), { items: Array.from({ length: 101 }, () => okPatch.items[0]) }));
 });
@@ -401,13 +413,22 @@ function fakeWebflow(v1, groups, meetings, days) {
     readDayOptions: async () => days,
     write: async (method, collectionId, path, body) => {
       assertWriteAllowed(method, collectionId, path, body);
-      writes.push({ method, collectionId, count: body.items.length });
+      const retire = body.items.every((it) => Object.keys(it.fieldData).join() === 'hide-from-meeting-finder');
+      writes.push({
+        method, collectionId, count: body.items.length,
+        op: `${method} ${collectionId === V2_GROUPS_ID ? 'groups' : 'meetings'}${method === 'PATCH' ? (retire ? ' retire' : ' update') : ''}`,
+        drafts: body.items.every((it) => it.isDraft === true),
+      });
       if (method === 'POST') {
         const made = body.items.map((it) => asStored(fields[collectionId], it.fieldData, `new-${++n}`, { isDraft: it.isDraft }));
         store[collectionId].push(...made);
         return { items: structuredClone(made) };
       }
-      for (const it of body.items) Object.assign(store[collectionId].find((x) => x.id === it.id).fieldData, it.fieldData);
+      for (const it of body.items) {
+        const item = store[collectionId].find((x) => x.id === it.id);
+        Object.assign(item.fieldData, it.fieldData);
+        item.isDraft = it.isDraft;
+      }
       return { items: [] };
     },
   };
@@ -460,6 +481,245 @@ await checkAsync('mass retirement is refused before any write', async () => {
   assert.equal(wf.writes.length, 0);
 });
 
+// ── (f) Review fixes: draft PATCHes, failure isolation, order, caps, logs ───
+console.log('(f) apply hardening');
+const capture = () => {
+  const lines = [];
+  return { lines, log: (l) => lines.push(String(l)) };
+};
+
+await checkAsync('every write carries isDraft:true, PATCHes included', async () => {
+  const { v1, groups, meetings } = synthetic();
+  const wf = fakeWebflow(v1, groups, meetings, dayOptions);
+  await runSync({ mode: 'apply', client: wf, log: silent });
+  assert.ok(wf.writes.some((w) => w.method === 'PATCH'));
+  assert.ok(wf.writes.every((w) => w.drafts));
+});
+
+await checkAsync('write order: group creates, meeting creates/updates, group updates, meeting then group retirements', async () => {
+  const { v1, groups, meetings } = synthetic();
+  meetings[0].fieldData['start-time'] = '21:00'; // makes M-a1 a meeting update
+  const wf = fakeWebflow(v1, groups, meetings, dayOptions);
+  await runSync({ mode: 'apply', client: wf, log: silent });
+  assert.deepEqual(wf.writes.map((w) => w.op), [
+    'POST groups', 'POST meetings', 'PATCH meetings update', 'PATCH groups update', 'PATCH meetings retire', 'PATCH groups retire',
+  ]);
+});
+
+await checkAsync('a group still referenced by a visible meeting is not retired (warning, no error)', async () => {
+  const { v1, groups, meetings } = synthetic();
+  const human = asStored(MEETING_FIELDS, { name: 'Human meeting 2', slug: 'human-2', group: 'G-old' }, 'M-human2');
+  const wf = fakeWebflow(v1, groups, [...meetings, human], dayOptions);
+  const cap = capture();
+  const { summary } = await runSync({ mode: 'apply', client: wf, log: cap.log });
+  assert.equal(summary.errors, 1, `${summary.errors} errors`); // only the known slug collision
+  assert.notEqual(wf.store[V2_GROUPS_ID].find((g) => g.id === 'G-old').fieldData['hide-from-meeting-finder'], true);
+  assert.ok(cap.lines.some((l) => l.startsWith('WARN group old-group') && l.includes('still referenced')));
+  assert.ok(!wf.writes.some((w) => w.op === 'PATCH groups retire'));
+  // A hidden referrer does not hold a group back.
+  assert.deepEqual(splitGroupRetirements([{ id: 'G' }], [{ fieldData: { group: 'G', 'hide-from-meeting-finder': true } }]).retire, [{ id: 'G' }]);
+});
+
+await checkAsync('a 4xx batch is retried one by one; one bad group never blocks the other writes', async () => {
+  const { v1, groups, meetings } = synthetic();
+  const wf = fakeWebflow(v1, groups, meetings, dayOptions);
+  const realWrite = wf.write;
+  wf.write = async (method, id, path, body) => {
+    if (method === 'POST' && id === V2_GROUPS_ID && body.items.some((it) => it.fieldData['legacy-group-key'] === 'g:beta group')) {
+      throw new HttpError(method, path, 400, 'validation_error', ['fieldData.name']);
+    }
+    return realWrite(method, id, path, body);
+  };
+  const cap = capture();
+  const { ok, summary } = await runSync({ mode: 'apply', client: wf, log: cap.log });
+  assert.equal(ok, false);
+  const errs = cap.lines.filter((l) => l.startsWith('ERROR'));
+  // Known collision + the bad group + its one meeting; nothing from verify.
+  assert.equal(summary.errors, 3, errs.map((l) => l.split(':')[0]).join(' | '));
+  assert.ok(errs.some((l) => l === 'ERROR group create beta-group-2: POST failed: 400 validation_error'));
+  assert.ok(!errs.some((l) => l.includes('verify')));
+  const keys = (coll, f) => wf.store[coll].map((x) => x.fieldData[f]);
+  assert.ok(keys(V2_GROUPS_ID, 'legacy-group-key').includes('g:gamma group'));
+  assert.ok(!keys(V2_GROUPS_ID, 'legacy-group-key').includes('g:beta group'));
+  assert.ok(keys(V2_MEETINGS_ID, 'legacy-item-id').includes('a2'));
+  assert.ok(!keys(V2_MEETINGS_ID, 'legacy-item-id').includes('b1'));
+  assert.ok(wf.writes.some((w) => w.op === 'PATCH groups update') && wf.writes.some((w) => w.op === 'PATCH groups retire'));
+});
+
+for (const [label, makeErr] of [
+  ['a 5xx', () => new HttpError('POST', 'p', 503, 'service_unavailable')],
+  ['a timeout', () => Object.assign(new Error('The operation was aborted due to timeout'), { name: 'TimeoutError' })],
+]) {
+  await checkAsync(`${label} on a batch is recorded, not split or retried, and the run continues`, async () => {
+    const { v1, groups, meetings } = synthetic();
+    const wf = fakeWebflow(v1, groups, meetings, dayOptions);
+    const realWrite = wf.write;
+    let meetingPosts = 0;
+    wf.write = async (method, id, path, body) => {
+      if (method === 'POST' && id === V2_MEETINGS_ID) {
+        meetingPosts++;
+        throw makeErr();
+      }
+      return realWrite(method, id, path, body);
+    };
+    const cap = capture();
+    const { ok, summary } = await runSync({ mode: 'apply', client: wf, log: cap.log });
+    assert.equal(ok, false);
+    assert.equal(meetingPosts, 1);
+    assert.equal(summary.errors, 2, `${summary.errors} errors`); // collision + the batch
+    assert.ok(cap.lines.some((l) => /^ERROR meeting create batch of 2 \(alpha-wed, beta-thu\): POST failed: .*may have landed/.test(l)));
+    assert.ok(wf.writes.some((w) => w.op === 'PATCH groups retire'));
+  });
+}
+
+await checkAsync('a guard refusal inside writeOps stops the run', async () => {
+  const { v1, groups, meetings } = synthetic();
+  const wf = fakeWebflow(v1, groups, meetings, dayOptions);
+  wf.write = async () => assertWriteAllowed('DELETE', V2_GROUPS_ID, p(V2_GROUPS_ID), okPatch);
+  await assert.rejects(runSync({ mode: 'apply', client: wf, log: silent }), /write refused/);
+});
+
+await checkAsync('creates over the cap are refused once v2 is populated, allowed on an empty v2', async () => {
+  const { v1, groups, meetings } = synthetic();
+  const many = Array.from({ length: 30 }, (_, i) => v1Item(`n${i}`, { group: `New Group ${i}`, slug: `new-${i}` }));
+  const wf = fakeWebflow([...v1, ...many], groups, meetings, dayOptions);
+  const cap = capture();
+  const { ok } = await runSync({ mode: 'apply', client: wf, log: cap.log });
+  assert.equal(ok, false);
+  assert.equal(wf.writes.length, 0);
+  assert.ok(cap.lines.some((l) => /refusing to apply: 6\d creates exceeds 50/.test(l)));
+  const empty = fakeWebflow(many, [], [], dayOptions);
+  const res = await runSync({ mode: 'apply', client: empty, log: silent });
+  assert.ok(res.ok, `${res.summary.errors} errors`);
+  assert.equal(empty.store[V2_MEETINGS_ID].length, 30);
+});
+
+await checkAsync('standalone group keys never reach the log; g: keys do', async () => {
+  const v1 = [
+    v1Item('s1', { name: 'Prairie Meeting', address: '77 Hidden Rd, Somewhere, MB', slug: 'prairie-mon' }),
+    v1Item('s2', { name: 'Lake Meeting', address: '9 Private Ln, Elsewhere, MB', slug: 'lake-tue' }),
+    v1Item('g1', { group: 'Public Group', slug: 'public-wed' }),
+  ];
+  const keyOf = (n) => migrate(v1).groups.find((g) => g.fieldData.name === n).key;
+  const groups = [
+    asStored(GROUP_FIELDS, { name: 'A', slug: 'lake-a', 'legacy-group-key': keyOf('Lake Meeting') }, 'G1'),
+    asStored(GROUP_FIELDS, { name: 'B', slug: 'lake-b', 'legacy-group-key': keyOf('Lake Meeting') }, 'G2'),
+    asStored(GROUP_FIELDS, { name: 'Human', slug: 'prairie-meeting' }, 'G3'),
+    asStored(GROUP_FIELDS, { name: 'Gone', slug: 'gone-standalone', 'legacy-group-key': 's:gone meeting|1 secret way, mb' }, 'G4'),
+  ];
+  const wf = fakeWebflow(v1, groups, [], dayOptions);
+  const cap = capture();
+  await runSync({ mode: 'dry-run', client: wf, log: cap.log });
+  await runSync({ mode: 'apply', client: wf, log: cap.log });
+  const text = cap.lines.join('\n');
+  { const bad = cap.lines.filter((l) => /\bs:(?!#[0-9a-f]{8}\b)/.test(l)); assert.equal(bad.length, 0, 'raw s: key in: ' + bad.join(' / ')); }
+  assert.ok(!/hidden rd|private ln|secret way/i.test(text), 'an address was logged');
+  assert.ok(text.includes(logKey(keyOf('Prairie Meeting'))) && text.includes(logKey(keyOf('Lake Meeting'))));
+  assert.ok(text.includes('[g:public group]'));
+  assert.match(logKey('s:x|y'), /^s:#[0-9a-f]{8}$/);
+  assert.equal(logKey('s:x|y'), logKey('s:x|y'));
+  assert.equal(logKey('g:public group'), 'g:public group');
+});
+
+await checkAsync('a list whose total moves while paging (or after) aborts the read', async () => {
+  const saved = globalThis.fetch;
+  const serve = (totals) => {
+    let call = 0;
+    globalThis.fetch = async (url) => {
+      const u = new URL(url);
+      const offset = Number(u.searchParams.get('offset'));
+      const limit = Number(u.searchParams.get('limit'));
+      const total = totals[Math.min(call++, totals.length - 1)];
+      const items = Array.from({ length: Math.max(0, Math.min(limit, 150 - offset)) }, (_, i) => ({ id: `i${offset + i}`, fieldData: {} }));
+      return new Response(JSON.stringify({ items, pagination: { total } }), { status: 200 });
+    };
+  };
+  try {
+    serve([150, 150, 150]);
+    assert.equal((await readAllItems(V2_GROUPS_ID)).length, 150);
+    serve([150, 150, 151]);
+    await assert.rejects(readAllItems(V2_GROUPS_ID), /changed while reading/);
+    serve([150, 149, 150]);
+    await assert.rejects(readAllItems(V2_GROUPS_ID), /changed while reading/);
+  } finally {
+    globalThis.fetch = saved;
+  }
+});
+
+check('Retry-After: missing or junk → 2 s, numbers honoured, capped', () => {
+  assert.equal(retryAfterMs(null), 2000);
+  assert.equal(retryAfterMs(''), 2000);
+  assert.equal(retryAfterMs('soon'), 2000);
+  assert.equal(retryAfterMs('-3'), 2000);
+  assert.equal(retryAfterMs('0'), 0);
+  assert.equal(retryAfterMs('5'), 5000);
+  assert.equal(retryAfterMs('100000'), 60000);
+});
+
+check('a JSON parse error is logged by name only', () => {
+  let err;
+  try {
+    JSON.parse('<html>contact: someone@example.org</html>');
+  } catch (e) {
+    err = e;
+  }
+  assert.equal(fatalMessage(err), 'FATAL SyntaxError');
+  assert.equal(describeError(err), 'SyntaxError');
+  assert.equal(fatalMessage(new Error('GET /collections/x/items → 500')), 'FATAL GET /collections/x/items → 500');
+  assert.equal(describeError(new HttpError('POST', '/p', 400, 'validation_error', ['fieldData.slug'])), '400 validation_error');
+});
+
+// ── (g) Parity comparison (offline) ─────────────────────────────────────────
+console.log('(g) /meetings vs /meetings-v2 comparison');
+{
+  const row = (slug, extra = {}) => ({ slug, name: 'N', day: 1, types: ['O', 'D'], notes: null, updated: '2026-11-01 00:00:00', ...extra });
+  const base = [row('a'), row('b'), row('c')];
+  check('identical feeds in another order, key order and updated ignored, outer whitespace ignored', () => {
+    const v2 = [
+      { updated: '2027-01-01 00:00:00', types: ['O', ' D'], day: 1, name: ' N ', slug: 'c', notes: null },
+      row('a', { updated: 'x' }),
+      row('b'),
+    ];
+    const r = compareFeeds(base, v2);
+    assert.deepEqual(parityProblems(r), []);
+    assert.equal(r.differing.length, 0);
+  });
+  check('a visible difference names slug and field only', () => {
+    const r = compareFeeds(base, [row('a', { name: 'Other' }), row('b', { notes: 'x' }), row('c')]);
+    assert.deepEqual(r.differing, [{ slug: 'a', fields: ['name'] }, { slug: 'b', fields: ['notes'] }]);
+    assert.equal(parityProblems(r).length, 1);
+    assert.ok(!JSON.stringify(r).includes('Other'));
+  });
+  check('inner whitespace, null vs "", absent vs null, and numbers vs strings all count', () => {
+    const { notes, ...noNotes } = row('c');
+    const r = compareFeeds(base, [row('a', { name: 'N  N' }), row('b', { notes: '' }), noNotes]);
+    assert.deepEqual(r.differing.map((d) => d.slug), ['a', 'b', 'c']);
+    assert.ok(!paritySame(1, '1'));
+    assert.ok(paritySame(' x', 'x '));
+  });
+  check('missing and extra rows, duplicates and slugless rows are problems', () => {
+    const r = compareFeeds(base, [row('a'), row('a'), row('b'), row('d'), { name: 'no slug' }]);
+    assert.deepEqual(r.onlyV1, ['c']);
+    assert.deepEqual(r.onlyV2, ['d']);
+    assert.deepEqual(r.duplicates.v2, ['a']);
+    assert.equal(r.invalid.v2, 1);
+    assert.equal(parityProblems(r).length, 4);
+  });
+  check(`under ${MIN_ROW_RATIO * 100}% of rows (incl. an empty v2) is its own alert`, () => {
+    const v1 = Array.from({ length: 20 }, (_, i) => row(`m${i}`));
+    assert.match(parityProblems(compareFeeds(v1, []))[0], /^\/meetings-v2 has 0 rows, under 90%/);
+    assert.match(parityProblems(compareFeeds(v1, v1.slice(0, 17)))[0], /under 90%/);
+    assert.ok(!parityProblems(compareFeeds(v1, v1.slice(0, 18))).some((p) => p.includes('under 90%')));
+  });
+  check('the parity script refuses redirects and never prints row values', () => {
+    const src = readFileSync(join(here, 'check-meetings-v2-parity.mjs'), 'utf8');
+    assert.match(src, /redirect: 'error'/);
+    assert.match(src, /\?fresh=\$\{Date\.now\(\)\}/);
+    const printed = src.split('\n').filter((l) => /console\.(log|error)\(/.test(l));
+    for (const l of printed) assert.ok(!/\b(v1|v2|body|row)\b\s*[),]/.test(l) && !/JSON\.stringify\((v1|v2|body)\)/.test(l), l.trim());
+  });
+}
+
 // ── (e) Real data: the sample already in v2 survives a first run ────────────
 console.log('(e) first run over the real backup leaves the v2 sample untouched');
 const SAMPLE = ['sample-groups-payload.json', 'sample-meetings-payload.json', 'sample-meetings-planned.json'].map((f) => `${PY_OUT}/${f}`);
@@ -495,13 +755,19 @@ if ([BACKUP, ...SAMPLE].every(existsSync)) {
     assert.equal(plan.groups.create.length, plan.derived.groups.length - 3);
     assert.equal(plan.meetings.create.length, plan.derived.meetings.length - 8);
   });
-  await checkAsync('in-memory apply over the real backup verifies, and a second run is a no-op', async () => {
+  await checkAsync('re-importing over the populated sample is refused by the create cap (0 writes)', async () => {
     const wf = fakeWebflow(v1, groups, meetings, days);
-    const sampleBefore = JSON.stringify([...wf.store[V2_GROUPS_ID], ...wf.store[V2_MEETINGS_ID]]);
+    const { ok } = await runSync({ mode: 'apply', client: wf, log: silent });
+    assert.equal(ok, false);
+    assert.equal(wf.writes.length, 0);
+  });
+  await checkAsync('in-memory full import of the real backup into an empty v2 verifies; a second run is a no-op', async () => {
+    const wf = fakeWebflow(v1, [], [], days);
     const { ok, summary } = await runSync({ mode: 'apply', client: wf, log: silent });
     assert.ok(ok, `${summary.errors} errors`);
-    assert.equal(JSON.stringify([...wf.store[V2_GROUPS_ID].slice(0, 3), ...wf.store[V2_MEETINGS_ID].slice(0, 8)]), sampleBefore);
-    assert.ok(wf.writes.every((w) => w.count <= 100));
+    assert.equal(wf.store[V2_GROUPS_ID].length, plan.derived.groups.length);
+    assert.equal(wf.store[V2_MEETINGS_ID].length, plan.derived.meetings.length);
+    assert.ok(wf.writes.every((w) => w.count <= 100 && w.drafts));
     assert.ok(wf.v1Untouched());
     const again = await runSync({ mode: 'dry-run', client: wf, log: silent });
     assert.ok(again.ok);

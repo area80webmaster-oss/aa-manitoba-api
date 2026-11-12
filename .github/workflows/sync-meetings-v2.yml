@@ -2,12 +2,15 @@
 # collections from the v1 Meetings collection via scripts/sync-meetings-v2.mjs
 # (rules and safety rails documented there). v1 is only ever read.
 #
-# Mode: scripts/sync-meetings-v2.config.json is committed as "dry-run", so
-# pushes and the schedule print the plan and write nothing until that file is
-# changed to "apply" in a reviewed commit. A manual run can pick the mode.
+# Mode: scripts/sync-meetings-v2.config.json decides for pushes and the
+# schedule ("dry-run" prints the plan and writes nothing; "apply" writes), and
+# is only changed in a reviewed commit. A manual run can pick the mode.
 #
-# The repo and these logs are PUBLIC: the job prints counts, slugs, group keys
-# and field names only — never field values.
+# The repo and these logs are PUBLIC: the job prints counts, slugs, public
+# group keys and field names only — never field values.
+#
+# After the sync, a parity step compares the public /meetings and /meetings-v2
+# feeds and fails the run on any visible difference.
 #
 # The schedule only runs on the default branch (main); on meetings-v2 the job
 # runs on pushes to the sync files. :07 keeps it clear of the geocoder at :37,
@@ -38,6 +41,8 @@ on:
       - 'scripts/sync-meetings-v2.config.json'
       - 'scripts/lib/meetings-v2-derive.mjs'
       - 'scripts/lib/meetings-v2-plan.mjs'
+      - 'scripts/lib/meetings-v2-parity.mjs'
+      - 'scripts/check-meetings-v2-parity.mjs'
       - 'scripts/test-meetings-v2-derive.mjs'
       - '.github/workflows/sync-meetings-v2.yml'
 
@@ -70,3 +75,8 @@ jobs:
           # Empty on push/schedule, so the committed config decides.
           SYNC_MODE: ${{ inputs.mode }}
         run: node scripts/sync-meetings-v2.mjs
+      # Read-only against the public API, so it runs in both modes and even
+      # when the sync step failed: a broken v2 feed must be visible either way.
+      - name: Check /meetings vs /meetings-v2 parity
+        if: ${{ !cancelled() }}
+        run: node scripts/check-meetings-v2-parity.mjs

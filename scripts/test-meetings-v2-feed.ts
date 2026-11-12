@@ -3,7 +3,15 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildFeed, manitobaDate, manitobaToday } from '../src/lib/meetings-v2/feed.ts';
-import { getDayOptions, listAllItems } from '../src/lib/meetings-v2/webflow.ts';
+import {
+	FETCH_DEADLINE_MS,
+	MAX_RETRIES,
+	MAX_RETRY_SECONDS,
+	REQUEST_TIMEOUT_MS,
+	feedDeadline,
+	getDayOptions,
+	listAllItems
+} from '../src/lib/meetings-v2/webflow.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 // Optional real-data check: the fixture holds private contact details, so it
@@ -161,7 +169,7 @@ if (existsSync(REAL_FIXTURE)) {
 		const u = new URL(url);
 		if (u.pathname.endsWith('/items')) {
 			const offset = Number(u.searchParams.get('offset'));
-			if (offset === 200 && throttled++ < 2) return json({}, 429, { 'retry-after': '0' });
+			if (offset === 200 && throttled++ < 1) return json({}, 429, { 'retry-after': '0' });
 			const items = Array.from({ length: Math.min(100, 250 - offset) }, (_, i) => ({ id: `i${offset + i}` }));
 			return json({ items, pagination: { total: 250 } });
 		}
@@ -171,7 +179,7 @@ if (existsSync(REAL_FIXTURE)) {
 		const items = await listAllItems('col', 'tok');
 		const ids = items.map((i) => i.id);
 		const orderOk = ids.every((id, i) => id === `i${i}`);
-		if (items.length === 250 && orderOk && throttled === 3) console.log('fetch layer: pagination + 429 retry passed');
+		if (items.length === 250 && orderOk && throttled === 2) console.log('fetch layer: pagination + 429 retry passed');
 		else fail(`fetch layer: items=${items.length} ordered=${orderOk} throttled=${throttled}`);
 		const days = await getDayOptions('col', 'tok');
 		if (JSON.stringify(days) !== '{"a":"Monday"}') fail('fetch layer: day options mismatch');
@@ -194,6 +202,105 @@ if (existsSync(REAL_FIXTURE)) {
 	} finally {
 		globalThis.fetch = realFetch;
 	}
+}
+
+// (e) Netlify time budget: a cold build must fail inside the 10 s function
+// limit so the route's last-good / 502 fallback can answer.
+{
+	const realFetch = globalThis.fetch;
+	const realTimeout = AbortSignal.timeout;
+	const timeouts: number[] = [];
+	AbortSignal.timeout = ((ms: number) => {
+		timeouts.push(ms);
+		return realTimeout.call(AbortSignal, ms);
+	}) as typeof AbortSignal.timeout;
+	const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
+		new Response(JSON.stringify(body), { status, headers });
+	const rejects = async (p: Promise<unknown>) => {
+		try {
+			await p;
+			return false;
+		} catch {
+			return true;
+		}
+	};
+	let pass = 0;
+	const expect = (ok: boolean, label: string) => (ok ? pass++ : fail(`time budget: ${label}`));
+	try {
+		expect(
+			REQUEST_TIMEOUT_MS === 7000 && MAX_RETRIES === 1 && MAX_RETRY_SECONDS <= 1 && FETCH_DEADLINE_MS === 8500,
+			'limits are 7 s / 1 retry / 1 s wait / 8.5 s deadline'
+		);
+		expect(FETCH_DEADLINE_MS + MAX_RETRY_SECONDS * 1000 < 10_000, 'deadline plus a retry wait stays under 10 s');
+
+		const page = json({ items: [{ id: 'a' }], pagination: { total: 1 } });
+		globalThis.fetch = (async () => page.clone()) as typeof fetch;
+		timeouts.length = 0;
+		await listAllItems('col', 'tok');
+		expect(timeouts[0] === REQUEST_TIMEOUT_MS, `fresh deadline uses the 7 s request timeout (got ${timeouts[0]})`);
+		timeouts.length = 0;
+		await listAllItems('col', 'tok', Date.now() + 3000);
+		expect(timeouts[0] > 0 && timeouts[0] <= 3000, 'request timeout shrinks to the time left');
+
+		let calls = 0;
+		globalThis.fetch = (async () => {
+			calls++;
+			return json({}, 429, { 'retry-after': '0' });
+		}) as typeof fetch;
+		expect(await rejects(listAllItems('col', 'tok')), 'two 429s in a row throw');
+		expect(calls === 2, `one retry only (got ${calls} calls)`);
+
+		calls = 0;
+		globalThis.fetch = (async () => {
+			calls++;
+			return calls === 1 ? json({}, 429, { 'retry-after': '30' }) : page.clone();
+		}) as typeof fetch;
+		let t0 = Date.now();
+		await listAllItems('col', 'tok');
+		expect(Date.now() - t0 < 1500, `Retry-After 30 waits at most 1 s (took ${Date.now() - t0} ms)`);
+
+		calls = 0;
+		globalThis.fetch = (async () => {
+			calls++;
+			return json({}, 429, { 'retry-after': 'soon' });
+		}) as typeof fetch;
+		t0 = Date.now();
+		expect(await rejects(listAllItems('col', 'tok', Date.now() + 500)), 'a 429 with no time left to wait throws');
+		expect(Date.now() - t0 < 400 && calls === 1, 'and does not sleep past the deadline');
+
+		calls = 0;
+		globalThis.fetch = (async () => {
+			calls++;
+			return page.clone();
+		}) as typeof fetch;
+		expect(await rejects(getDayOptions('col', 'tok', Date.now() - 1)), 'a passed deadline throws');
+		expect(calls === 0, 'without fetching');
+
+		// A hung Webflow: the fetch only ends when its signal aborts.
+		globalThis.fetch = ((_url: string, init?: RequestInit) =>
+			new Promise((_, reject) => {
+				init?.signal?.addEventListener('abort', () => reject(init.signal!.reason));
+			})) as typeof fetch;
+		// AbortSignal.timeout's timer is unref'd; a real socket would keep the
+		// process alive, this stub needs a timer to stand in for it.
+		const keepAlive = setInterval(() => {}, 50);
+		t0 = Date.now();
+		const deadline = Date.now() + 300;
+		const all = await Promise.allSettled([
+			listAllItems('a', 'tok', deadline),
+			listAllItems('b', 'tok', deadline),
+			getDayOptions('b', 'tok', deadline)
+		]);
+		clearInterval(keepAlive);
+		const took = Date.now() - t0;
+		expect(all.every((r) => r.status === 'rejected'), 'a hung build rejects');
+		expect(took >= 250 && took < 1000, `at the shared deadline (took ${took} ms)`);
+		expect(feedDeadline(1000) === 1000 + FETCH_DEADLINE_MS, 'feedDeadline adds the budget');
+	} finally {
+		globalThis.fetch = realFetch;
+		AbortSignal.timeout = realTimeout;
+	}
+	console.log(`time budget: ${pass}/14 passed`);
 }
 
 if (failures > 0) {

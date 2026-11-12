@@ -21,8 +21,11 @@
 //     and nothing under it is written until a human resolves it.
 //
 // Messages carry only slugs, group keys and field names: the job's logs are
-// public, and field values include contact names, emails and phones.
+// public, and field values include contact names, emails and phones. A
+// standalone group's key ('s:<name>|<address>') embeds an address, so it is
+// only ever logged through logKey().
 
+import { createHash } from 'node:crypto';
 import { migrate, slugify } from './meetings-v2-derive.mjs';
 
 export const GROUP_FIELDS = [
@@ -41,6 +44,15 @@ const SWITCHES = new Set(['hide-from-meeting-finder', 'hide-group-name', 'no-onl
 const HIDE = 'hide-from-meeting-finder';
 
 const empty = (v) => v === undefined || v === null || v === '';
+
+// 'g:' keys are public group names and stay readable; 's:' keys carry an
+// address, so logs get a short stable hash that still matches across runs.
+export function logKey(key) {
+  if (typeof key === 'string' && key.startsWith('s:')) {
+    return `s:#${createHash('sha256').update(key).digest('hex').slice(0, 8)}`;
+  }
+  return String(key);
+}
 
 export function sameValue(field, a, b) {
   if (SWITCHES.has(field)) {
@@ -86,7 +98,7 @@ function indexByKey(items, keyField, collection, errors, humanItems) {
   for (const [key, list] of byKey) {
     if (list.length > 1) {
       blocked.add(key);
-      errors.push(`${collection}: ${list.length} v2 items share ${keyField} ${key} (slugs ${list.map((i) => i.fieldData?.slug).join(', ')}); nothing under this key is written until one is removed`);
+      errors.push(`${collection}: ${list.length} v2 items share ${keyField} ${logKey(key)} (slugs ${list.map((i) => i.fieldData?.slug).join(', ')}); nothing under this key is written until one is removed`);
     }
   }
   return { byKey, blocked };
@@ -127,7 +139,7 @@ export function planSync({ v1Items, v2Groups, v2Meetings, dayOptions }) {
         const base = slugify(dg.fieldData.name);
         let n = 2;
         while (takenGroupSlugs.has(`${base}-${n}`) || reservedGroupSlugs.has(`${base}-${n}`)) n++;
-        warnings.push(`group ${dg.key}: slug ${slug} is taken in v2, creating as ${base}-${n}`);
+        warnings.push(`group ${logKey(dg.key)}: slug ${slug} is taken in v2, creating as ${base}-${n}`);
         slug = `${base}-${n}`;
       }
       takenGroupSlugs.add(slug);
@@ -168,7 +180,7 @@ export function planSync({ v1Items, v2Groups, v2Meetings, dayOptions }) {
       skipped.meetings.add(key);
     };
     if (g.blocked.has(dm.groupKey)) {
-      skip(`its group ${dm.groupKey} is ambiguous in v2; not written`);
+      skip(`its group ${logKey(dm.groupKey)} is ambiguous in v2; not written`);
       continue;
     }
     const dayId = dayIdByName.get(dm.fieldData.day);
@@ -187,6 +199,12 @@ export function planSync({ v1Items, v2Groups, v2Meetings, dayOptions }) {
         skip('v1 item has no slug; not created');
         continue;
       }
+      // Left as an error on purpose: renaming would break a public link. To
+      // resolve by hand, either clear (or change) the slug on the v2 item
+      // that holds it — typically a retired meeting — so the next run can
+      // create this one, or, if this is the same meeting re-entered in v1,
+      // set that v2 item's legacy-item-id to the new v1 item ID so the sync
+      // adopts it instead of creating a second one.
       if (meetingSlugOwner.has(slug)) {
         skip('slug is already used by another v2 item; not created (meeting slugs are public links and are never renamed)');
         continue;
@@ -218,6 +236,17 @@ export function planSync({ v1Items, v2Groups, v2Meetings, dayOptions }) {
   return { derived, groups, meetings, humanItems, errors, warnings, skipped };
 }
 
+// A group is only hidden once no visible v2 meeting points at it: hiding a
+// group that a live meeting still references would orphan that meeting in
+// the feed. Returns the retirements that are safe now and the ones to leave
+// for a later run.
+export function splitGroupRetirements(retire, v2Meetings) {
+  const referenced = new Set(
+    v2Meetings.filter((m) => m.fieldData?.[HIDE] !== true).map((m) => m.fieldData?.group).filter(Boolean)
+  );
+  return { retire: retire.filter((r) => !referenced.has(r.id)), kept: retire.filter((r) => referenced.has(r.id)) };
+}
+
 // After an apply, a fresh plan over the re-read v2 state must be empty and
 // every planned item must still be a draft. `before` is what was executed:
 // { skipped, errors, groups: { create }, meetings: { create } }. Returns
@@ -228,7 +257,7 @@ export function verifyPlan(before, after, v2Groups, v2Meetings) {
     for (const op of [...plan.create, ...plan.update, ...plan.retire]) {
       if (before.skipped[kind].has(op.key)) continue;
       const what = plan.create.includes(op) ? 'missing' : plan.retire.includes(op) ? 'not retired' : `differs in [${op.fields.join(', ')}]`;
-      out.push(`${kind} ${op.slug ?? op.key}: ${what}`);
+      out.push(`${kind} ${op.slug ?? logKey(op.key)}: ${what}`);
     }
   }
   const knownErrors = new Set(before.errors);

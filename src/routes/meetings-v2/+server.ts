@@ -2,7 +2,7 @@ import { env } from '$env/dynamic/private';
 import type { RequestHandler } from './$types';
 import { GROUPS_COLLECTION_ID, GROUP_MEETINGS_COLLECTION_ID, INCLUDE_DRAFTS } from '$lib/meetings-v2/config';
 import { buildFeed, manitobaToday } from '$lib/meetings-v2/feed';
-import { getDayOptions, listAllItems } from '$lib/meetings-v2/webflow';
+import { feedDeadline, getDayOptions, listAllItems } from '$lib/meetings-v2/webflow';
 
 const SECURITY_HEADERS: Record<string, string> = {
 	// CORS is set dynamically in src/hooks.server.ts after origin verification.
@@ -39,10 +39,13 @@ export const GET: RequestHandler = async () => {
 	}
 
 	try {
+		// One deadline for the whole build, so a slow Webflow fails it in time
+		// for the fallback below to answer inside Netlify's function limit.
+		const deadline = feedDeadline();
 		const [groups, meetings, dayOptions] = await Promise.all([
-			listAllItems(GROUPS_COLLECTION_ID, token),
-			listAllItems(GROUP_MEETINGS_COLLECTION_ID, token),
-			getDayOptions(GROUP_MEETINGS_COLLECTION_ID, token)
+			listAllItems(GROUPS_COLLECTION_ID, token, deadline),
+			listAllItems(GROUP_MEETINGS_COLLECTION_ID, token, deadline),
+			getDayOptions(GROUP_MEETINGS_COLLECTION_ID, token, deadline)
 		]);
 		const { rows, skipped } = buildFeed(groups, meetings, dayOptions, manitobaToday(), INCLUDE_DRAFTS);
 		// Slug and reason only: meeting data must not reach the logs.
