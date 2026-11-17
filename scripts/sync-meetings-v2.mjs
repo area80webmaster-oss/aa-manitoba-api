@@ -20,9 +20,10 @@
 //     no DELETE, no isArchived. Created and updated items both say
 //     isDraft:true explicitly, so the parallel run never depends on an API
 //     default to stay unpublished. Retirement is a hide flag, never a delete.
-//   • Runs only while src/lib/meetings-source.json says "v1". Once /meetings
-//     reads v2 the sync refuses to start (see syncAllowed), and its workflow
-//     no longer runs on a schedule or on pushes.
+//   • Runs only before the first cutover (src/lib/meetings-source.json says
+//     "v1" with no `since`). After it, rollback included, the sync refuses to
+//     start (see syncAllowed), and its workflow no longer runs on a schedule
+//     or on pushes.
 //   • mode comes from sync-meetings-v2.config.json, overridable by SYNC_MODE.
 //     dry-run prints the plan and writes nothing.
 //   • A read that comes up short of pagination.total, or whose total moved
@@ -409,16 +410,18 @@ export function resolveMode(env = process.env) {
 }
 
 // After the cutover Groups + Group Meetings are where volunteers edit, so a
-// v1→v2 run would overwrite their work with the frozen v1 data and hide every
-// meeting added since. It may only ever run while v1 is live.
-export function syncAllowed(source) {
-  return source === 'v1';
+// v1→v2 run would overwrite their work with the frozen v1 data, re-draft every
+// item it touches (which hides it) and hide every meeting added since. That
+// stays true after a rollback, so the sync may only run before the first
+// cutover: source v1 and no cutover time recorded.
+export function syncAllowed(config) {
+  return config?.source === 'v1' && config?.since == null;
 }
 
 async function main() {
-  const { source } = readSource();
-  if (!syncAllowed(source)) {
-    console.log(`meetings-source.json says "${source}": the v1→v2 sync is retired and wrote nothing.`);
+  const config = readSource();
+  if (!syncAllowed(config)) {
+    console.log(`meetings-source.json shows a cutover (since ${config.since}): the v1→v2 sync is retired and wrote nothing.`);
     return;
   }
   token = process.env.WEBFLOW_WRITE_TOKEN;

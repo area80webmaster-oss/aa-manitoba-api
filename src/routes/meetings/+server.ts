@@ -290,7 +290,11 @@ export const GET: RequestHandler = async ({ url }) => {
 
 	if (source === 'v1') {
 		try {
-			return feedResponse(await buildV1(token), 'v1');
+			// After the cutover ?source=v1 is the frozen rollback copy, only ever
+			// read to compare; keep it from sitting in caches as if current.
+			const extra: Record<string, string> =
+				MEETINGS_SOURCE === 'v2' ? { 'Cache-Control': SHORT_CACHE, 'X-Feed-Frozen': '1' } : {};
+			return feedResponse(await buildV1(token), 'v1', extra);
 		} catch (err) {
 			console.error('[meetings] fetch failed:', err);
 			return failedResponse();

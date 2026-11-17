@@ -1,7 +1,8 @@
 # Hourly: fill Latitude/Longitude where an Address changed, via
 # scripts/geocode-meetings.mjs (rules and safety rails documented there). It
 # works on Meetings or on Groups, whichever src/lib/meetings-source.json says is
-# live. After the cutover a second step watches the frozen old collection.
+# live. Two read-only steps follow: after the cutover one watches the frozen
+# old collection, and one checks the public list holds every meeting it should.
 # The /webhooks/geocode-meeting endpoint is the instant path; this sweep is
 # the backfill and safety net behind it.
 #
@@ -37,6 +38,7 @@ on:
     paths:
       - 'scripts/geocode-meetings.mjs'
       - 'scripts/check-legacy-untouched.mjs'
+      - 'scripts/check-meetings-health.mjs'
       - 'scripts/lib/meetings-source.mjs'
       # Switching /meetings between v1 and v2 moves the sweep to the other
       # collection; run it right away so the switch is checked, not assumed.
@@ -46,12 +48,13 @@ on:
 jobs:
   geocode:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # 24: the health check imports the feed route's TypeScript directly.
+          node-version: 24
       - name: Geocode meeting addresses
         env:
           WEBFLOW_WRITE_TOKEN: ${{ secrets.WEBFLOW_WRITE_TOKEN }}
@@ -71,3 +74,10 @@ jobs:
         env:
           WEBFLOW_WRITE_TOKEN: ${{ secrets.WEBFLOW_WRITE_TOKEN }}
         run: node scripts/check-legacy-untouched.mjs
+      # The public list must hold every meeting that should be public, from
+      # the reader the switch names. Read-only; slugs only in this public log.
+      - name: Check the public meeting list is complete
+        if: ${{ !cancelled() }}
+        env:
+          WEBFLOW_WRITE_TOKEN: ${{ secrets.WEBFLOW_WRITE_TOKEN }}
+        run: node scripts/check-meetings-health.mjs

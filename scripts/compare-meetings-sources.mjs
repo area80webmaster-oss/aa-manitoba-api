@@ -6,13 +6,15 @@
 // exactly the edits volunteers made in the new collections, so on a rollback
 // this is the list of changes the old collection is missing.
 //
-// Run: node scripts/compare-meetings-sources.mjs [--values] [--base=https://api.aamanitoba.org]
+// Run: node scripts/compare-meetings-sources.mjs [--values] [--require-identical] [--base=https://api.aamanitoba.org]
 // Prints slugs and field names; --values adds the differing values (public
 // feed data, but keep it out of the public repo and its CI logs).
-// Exit code: 0 = compared (identical or not), 2 = a reader failed.
+// Exit code: 0 = compared, 2 = a reader failed, 3 = --require-identical and
+// the readers differ, or one did not answer as itself (fallback, stale, old build).
 
 const args = process.argv.slice(2);
 const showValues = args.includes('--values');
+const requireIdentical = args.includes('--require-identical');
 const base = (args.find((a) => a.startsWith('--base='))?.slice(7) || 'https://api.aamanitoba.org').replace(/\/$/, '');
 // `updated` differs by design (v1 = last publish, v2 = last edit).
 const IGNORED = new Set(['updated']);
@@ -43,8 +45,9 @@ try {
 console.log(`/meetings now serves: ${live.source ?? '(no X-Meetings-Source header: old build)'}${live.stale ? ' (stale copy)' : ''}, ${live.rows.length} meetings`);
 console.log(`?source=v1 → ${v1.source}, ${v1.rows.length} meetings`);
 console.log(`?source=v2 → ${v2.source}${v2.stale ? ' (stale copy)' : ''}, ${v2.rows.length} meetings`);
-if (v1.source !== 'v1' || !['v2'].includes(v2.source)) {
-  console.log('WARNING: a reader did not answer as itself (fallback or old build); the comparison below may not mean what it says.');
+const honest = v1.source === 'v1' && v2.source === 'v2' && !v2.stale;
+if (!honest) {
+  console.log('WARNING: a reader did not answer as itself (fallback, stale copy or old build); the comparison below may not mean what it says.');
 }
 
 const index = (rows) => new Map(rows.map((r) => [r.slug, r]));
@@ -78,4 +81,9 @@ console.log(
 for (const s of onlyV1) console.log(`  - only in v1: ${s}`);
 for (const s of onlyV2) console.log(`  + only in v2: ${s}`);
 for (const l of lines) console.log(l);
-if (!onlyV1.length && !onlyV2.length && !visible) console.log('IDENTICAL (apart from whitespace and `updated`).');
+const identical = !onlyV1.length && !onlyV2.length && !visible;
+if (identical) console.log('IDENTICAL (apart from whitespace and `updated`).');
+if (requireIdentical && !(identical && honest)) {
+  console.log('NOT SAFE TO SWITCH: the readers must both answer as themselves and match exactly.');
+  process.exit(3);
+}

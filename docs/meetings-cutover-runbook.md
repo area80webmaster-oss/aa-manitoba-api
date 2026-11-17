@@ -10,11 +10,24 @@ JSON shape never change; only the CMS structure behind it does.
 
 | `source` | `/meetings` reads | geocoder writes pins to | v1→v2 sync |
 |---|---|---|---|
-| `v1` | Meetings (flat) | Meetings | allowed (manual only) |
+| `v1` | Meetings (flat) | Meetings | manual only, and only before the first cutover |
 | `v2` | Groups + Group Meetings | Groups | refuses to run |
 
-`since` (v2 only) is the cutover time; the hourly legacy watch fails the
-geocode job if anyone edits the old Meetings collection after it.
+`since` is the freeze time of the first cutover and never moves: every later
+switch keeps it. Once it is set, the v1→v2 sync refuses to run, rollback
+included (after a rollback, re-enter v2 edits in v1 by hand, never with the
+sync). The dormant instant-geocode webhook also ignores the frozen collection.
+
+Hourly read-only checks run after the geocoder (`.github/workflows/geocode-meetings.yml`,
+public logs, slugs only); a failure emails the repo:
+- **legacy watch** (`scripts/check-legacy-untouched.mjs`): someone edited the
+  old Meetings collection after `since`. Re-enter the edit in the new
+  collections; to clear the alert, move `since` past it in a reviewed commit.
+- **health check** (`scripts/check-meetings-health.mjs`): `/meetings` answers
+  from the wrong reader, a stale copy or the v1 fallback; fewer than 350
+  meetings; or a Group Meeting that should be public is missing or skipped.
+  It also warns about drafts created since the cutover and about draft/hidden
+  groups that still hold public meetings.
 
 Every response carries `X-Meetings-Source: v1 | v2 | v1-fallback`, and
 `/meetings?source=v1` or `?source=v2` forces one reader for checking.
@@ -37,10 +50,22 @@ and build pass, then waits until production answers from the target and prints
 the comparison. Netlify deploys `main` in about a minute; edge caches can serve
 the previous answer for up to 5 minutes.
 
-**Fastest rollback (no git):** Netlify → aa-manitoba-api → Deploys → the last
-deploy before the switch → **Publish deploy**. Then run
-`scripts/meetings-switch.sh v1` so `main` matches production (otherwise the
-next deploy of `main` re-applies v2).
+`v2` refuses unless `INCLUDE_DRAFTS = false`, production's `?source=v1` and
+`?source=v2` answer as themselves and match exactly (`ALLOW_DRIFT=1` for a
+switch forward after a rollback), and the time is outside :33–:47 (the hourly
+geocoder reads the switch when it starts at :37). `v1` runs only the build
+(`SKIP_CHECKS=1` skips it) so a test can never block an emergency. A failed
+push undoes the local commit.
+
+**Fastest rollback (no git):** Netlify → aa-manitoba-api → Deploys → a deploy
+made after the switch was installed (it carries `X-Meetings-Source`) but before
+the v2 switch → **Publish deploy**. This LOCKS auto-publishing: run
+`scripts/meetings-switch.sh v1` so `main` matches production, then unlock
+("Enable auto publishing"), or later fixes to `main` never go live.
+
+**Policy: fix forward by default.** Roll back only when the feed itself is
+broken (wrong or missing meetings for visitors). An editor confusion is fixed
+in the CMS, not by switching.
 
 ## What a rollback costs
 
@@ -48,8 +73,16 @@ There is no continuous v2→v1 mirror. Rolling back shows the old collection as
 it was at the cutover, so edits made in Groups / Group Meetings after the
 cutover disappear from the site until they are re-entered there. The
 comparison the rollback prints is exactly that list (`~` changed, `+` added in
-v2, `-` removed in v2); run with `COMPARE_VALUES=1` for the values. Tell the
-editors which collection to use after any switch.
+v2, `-` removed in v2); run with `COMPARE_VALUES=1` for the values. If the v2
+reader is the thing that broke, that list is incomplete: take the edits from
+Webflow (sort Groups / Group Meetings by last updated). Meetings created in v2
+need new items in v1, so their links change. Tell the editors which
+collection to use after any switch.
+
+Note for editors on v2: a group's address, pin, online link and contacts are
+shared by all its meetings, and the geocoder re-pins the whole group when its
+address changes (an online-only group whose address is edited becomes
+in-person + online, as in v1).
 
 ## Cutover sequence (2026-11-17)
 

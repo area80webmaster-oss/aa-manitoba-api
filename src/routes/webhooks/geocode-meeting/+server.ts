@@ -1,5 +1,6 @@
 import { env } from '$env/dynamic/private';
 import type { RequestHandler } from './$types';
+import { MEETINGS_SOURCE } from '$lib/meetings-source';
 
 // Receives Webflow `collection_item_created` / `collection_item_changed`
 // webhooks for the Meetings collection and fills Latitude/Longitude (plus
@@ -202,6 +203,13 @@ export const POST: RequestHandler = async ({ request, url }) => {
 	const item = body.payload;
 	if (!item?.id || item.collectionId !== MEETINGS_COLLECTION_ID) {
 		return json(200, { status: 'ignored', reason: 'not a Meetings item' });
+	}
+	// After the cutover the Meetings collection is the frozen rollback copy:
+	// writing pins into it would hide a stray edit from the legacy watch and
+	// change what a rollback restores. Groups get their pins from the hourly
+	// sweep (scripts/geocode-meetings.mjs), which follows the switch.
+	if (MEETINGS_SOURCE !== 'v1') {
+		return json(200, { status: 'ignored', reason: 'Meetings is frozen since the switch to v2' });
 	}
 	if (item.isArchived) {
 		return json(200, { status: 'ignored', reason: 'archived' });

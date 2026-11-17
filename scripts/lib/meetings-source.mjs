@@ -13,8 +13,14 @@ export function parseSource(text) {
   if (config?.source !== 'v1' && config?.source !== 'v2') {
     throw new Error(`meetings-source.json: source must be "v1" or "v2", got ${JSON.stringify(config?.source)}`);
   }
-  // `since` marks the cutover; the legacy watch flags v1 edits after it.
-  if (config.source === 'v2' && (typeof config.since !== 'string' || Number.isNaN(Date.parse(config.since)))) {
+  // `since` is the freeze time of the first cutover and never moves after it:
+  // the legacy watch flags v1 edits after it, and once it is set the v1→v2
+  // sync is retired for good (a rollback keeps it).
+  const hasSince = typeof config.since === 'string' && !Number.isNaN(Date.parse(config.since));
+  if (config.since != null && !hasSince) {
+    throw new Error('meetings-source.json: "since" must be an ISO timestamp or null');
+  }
+  if (config.source === 'v2' && !hasSince) {
     throw new Error('meetings-source.json: source "v2" needs an ISO timestamp in "since"');
   }
   return config;

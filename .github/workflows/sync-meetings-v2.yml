@@ -17,8 +17,8 @@ name: Sync meetings v2
 # Retired at the cutover: Groups + Group Meetings became the edited source, so
 # this no longer runs on a schedule or on pushes (either would overwrite
 # volunteers' edits with the frozen v1 data). The script itself also refuses to
-# run unless src/lib/meetings-source.json says "v1"; a manual run stays
-# possible for a rollback period that resumes the parallel run.
+# run once src/lib/meetings-source.json records a cutover, rollback included:
+# after a rollback, v2 edits are re-entered in v1 by hand, never by this sync.
 on:
   workflow_dispatch:
     inputs:
