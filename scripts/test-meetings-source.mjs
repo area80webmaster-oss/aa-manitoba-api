@@ -27,7 +27,8 @@ check(live.source === 'v1' || live.source === 'v2', 'committed meetings-source.j
 
 // Parsing.
 check(parseSource('{"source":"v1","since":null}').source === 'v1', 'v1 without since parses');
-check(parseSource('{"source":"v2","since":"2026-11-17T12:00:00.000Z"}').source === 'v2', 'v2 with since parses');
+check(parseSource('{"source":"v2","since":"2026-11-17T12:00:00.000Z","cutoverAt":"2026-11-17T12:00:00.000Z"}').source === 'v2', 'v2 with since and cutoverAt parses');
+check(throws(() => parseSource('{"source":"v2","since":"2026-11-17T12:00:00.000Z"}')), 'v2 without cutoverAt is rejected');
 check(throws(() => parseSource('{"source":"v2","since":null}')), 'v2 without since is rejected');
 check(throws(() => parseSource('{"source":"v2","since":"soon"}')), 'v2 with a bad since is rejected');
 check(throws(() => parseSource('{"source":"V2"}')), 'a misspelt source is rejected');
@@ -38,9 +39,12 @@ check(throws(() => parseSource('not json')), 'invalid JSON is rejected');
 check(geocodeCollectionFor('v1') === V1_MEETINGS_ID, 'geocoder targets Meetings on v1');
 check(geocodeCollectionFor('v2') === V2_GROUPS_ID, 'geocoder targets Groups on v2');
 check(syncAllowed({ source: 'v1', since: null }) === true, 'v1→v2 sync may run before the cutover');
-check(syncAllowed({ source: 'v2', since: '2026-11-17T12:00:00.000Z' }) === false, 'v1→v2 sync refuses once v2 is live');
-check(syncAllowed({ source: 'v1', since: '2026-11-17T12:00:00.000Z' }) === false, 'v1→v2 sync stays retired after a rollback');
-check(parseSource('{"source":"v1","since":"2026-11-17T12:00:00.000Z"}').since !== null, 'a rollback keeps the cutover time');
+const t = '2026-11-17T12:00:00.000Z';
+check(syncAllowed({ source: 'v2', since: t, cutoverAt: t }) === false, 'v1→v2 sync refuses once v2 is live');
+check(syncAllowed({ source: 'v1', since: t, cutoverAt: t }) === false, 'v1→v2 sync stays retired after a rollback');
+check(syncAllowed({ source: 'v1', since: null, cutoverAt: t }) === false, 'cutoverAt alone retires the sync');
+check(parseSource('{"source":"v1","since":null,"cutoverAt":"2026-11-17T12:00:00.000Z"}').cutoverAt !== null, 'a rollback keeps the cutover time');
+check(throws(() => parseSource('{"source":"v1","cutoverAt":"soon"}')), 'a bad cutoverAt is rejected');
 check(throws(() => parseSource('{"source":"v1","since":"later"}')), 'v1 with a bad since is rejected');
 
 // The route's own copy of the rule (src/lib/meetings-source.ts) must accept

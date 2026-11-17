@@ -21,7 +21,7 @@
 //     isDraft:true explicitly, so the parallel run never depends on an API
 //     default to stay unpublished. Retirement is a hide flag, never a delete.
 //   • Runs only before the first cutover (src/lib/meetings-source.json says
-//     "v1" with no `since`). After it, rollback included, the sync refuses to
+//     "v1" with no `cutoverAt`). After it, rollback included, the sync refuses to
 //     start (see syncAllowed), and its workflow no longer runs on a schedule
 //     or on pushes.
 //   • mode comes from sync-meetings-v2.config.json, overridable by SYNC_MODE.
@@ -415,13 +415,13 @@ export function resolveMode(env = process.env) {
 // stays true after a rollback, so the sync may only run before the first
 // cutover: source v1 and no cutover time recorded.
 export function syncAllowed(config) {
-  return config?.source === 'v1' && config?.since == null;
+  return config?.source === 'v1' && config?.cutoverAt == null && config?.since == null;
 }
 
 async function main() {
   const config = readSource();
   if (!syncAllowed(config)) {
-    console.log(`meetings-source.json shows a cutover (since ${config.since}): the v1→v2 sync is retired and wrote nothing.`);
+    console.log(`meetings-source.json shows a cutover (${config.cutoverAt ?? config.since}): the v1→v2 sync is retired and wrote nothing.`);
     return;
   }
   token = process.env.WEBFLOW_WRITE_TOKEN;

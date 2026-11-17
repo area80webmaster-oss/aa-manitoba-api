@@ -14,8 +14,12 @@
 # Cutting over (v2) refuses unless drafts are hidden (INCLUDE_DRAFTS = false)
 # and production's two readers answer as themselves and match exactly.
 # ALLOW_DRIFT=1 skips the match for a switch forward after a rollback, when
-# drift is expected. `since` is the freeze time of the FIRST cutover (SINCE=…
-# sets it, default now) and is kept by every later switch.
+# drift is expected: first re-enter in v2 any v1 edits made during the
+# rollback. `since` is the freeze time of this v2 period (SINCE=<ISO> sets it,
+# default now; the legacy watch flags v1 edits after it); `cutoverAt` records
+# the first cutover and never changes (it retires the v1→v2 sync for good).
+# Roll back only with this script: a `git revert` of a switch commit would
+# clear cutoverAt.
 #
 # Rolling back (v1) only runs the build (SKIP_CHECKS=1 skips that too), so a
 # broken test can never block an emergency. It hides every edit volunteers
@@ -71,26 +75,30 @@ branch="$(git rev-parse --abbrev-ref HEAD)"
   echo "Refusing: local main differs from origin/main (pull or push first)." >&2
   exit 1
 }
-if ! git diff --quiet -- src scripts .github || ! git diff --cached --quiet; then
-  echo "Refusing: uncommitted changes under src/, scripts/ or .github/, or something staged." >&2
+if [[ -n "$(git status --porcelain -- src scripts .github)" ]] || ! git diff --cached --quiet; then
+  echo "Refusing: uncommitted or untracked files under src/, scripts/ or .github/, or something staged." >&2
   exit 1
 fi
 
 current="$(node -e 'console.log(require("./src/lib/meetings-source.json").source)')"
-since_now="$(node -e 'console.log(require("./src/lib/meetings-source.json").since ?? "")')"
+cutover_now="$(node -e 'console.log(require("./src/lib/meetings-source.json").cutoverAt ?? "")')"
+
+# The geocoder sweep runs at :37 and reads the switch when it starts; a switch
+# landing mid-run would let it write the old collection after the freeze.
+outside_geocoder_window() {
+  local minute=$((10#$(date -u +%M)))
+  (( minute < 33 || minute > 50 )) || [[ "${FORCE_WINDOW:-0}" == "1" ]]
+}
 
 if [[ "$TARGET" == "v2" && "$current" != "v2" ]]; then
   grep -Eq '^export const INCLUDE_DRAFTS = false;' src/lib/meetings-v2/config.ts || {
     echo "Refusing: INCLUDE_DRAFTS is not false in src/lib/meetings-v2/config.ts, so unfinished drafts would go public." >&2
     exit 1
   }
-  # The geocoder sweep runs at :37 and reads the switch at its start; a switch
-  # landing mid-run would let it write the old collection after the freeze.
-  minute=$((10#$(date -u +%M)))
-  if (( minute >= 33 && minute <= 47 )) && [[ "${FORCE_WINDOW:-0}" != "1" ]]; then
-    echo "Refusing: the hourly geocoder runs around :37. Retry after :47 (or FORCE_WINDOW=1)." >&2
+  outside_geocoder_window || {
+    echo "Refusing: the hourly geocoder runs around :37. Retry after :50 (or FORCE_WINDOW=1)." >&2
     exit 1
-  fi
+  }
   if [[ "${ALLOW_DRIFT:-0}" != "1" ]]; then
     echo "Preflight: production ?source=v1 and ?source=v2 must match exactly…"
     compare --require-identical || { echo "Refusing: not identical (see above). Nothing was changed." >&2; exit 1; }
@@ -104,14 +112,20 @@ else
   SINCE_IN="${SINCE:-}" node --input-type=module -e '
     import { writeFileSync } from "node:fs";
     import { parseSource } from "./scripts/lib/meetings-source.mjs";
-    const [target, kept] = process.argv.slice(1);
-    // The first cutover sets the freeze time; every later switch keeps it.
-    let since = kept || null;
-    if (target === "v2" && !since) since = process.env.SINCE_IN || new Date().toISOString();
-    const config = { source: target, since };
+    const [target, keptCutover] = process.argv.slice(1);
+    let since = null;
+    if (target === "v2") {
+      const raw = process.env.SINCE_IN;
+      // Explicit Z or offset only: a bare local time reads differently here and in CI.
+      if (raw && !/(Z|[+-]\d\d:?\d\d)$/.test(raw)) throw new Error("SINCE needs a Z or offset, e.g. 2026-11-17T11:00:00Z");
+      const t = raw ? new Date(raw) : new Date();
+      if (Number.isNaN(t.getTime()) || t.getTime() > Date.now() + 60000) throw new Error("SINCE must be a valid time, not in the future");
+      since = t.toISOString();
+    }
+    const config = { source: target, since, cutoverAt: keptCutover || since };
     parseSource(JSON.stringify(config));
     writeFileSync("src/lib/meetings-source.json", JSON.stringify(config, null, "\t") + "\n");
-  ' "$TARGET" "$since_now"
+  ' "$TARGET" "$cutover_now"
   cat "$SOURCE_FILE"
 
   restore() { git checkout -- "$SOURCE_FILE"; }
@@ -137,6 +151,11 @@ else
     exit 1
   fi
 
+  if [[ "$TARGET" == "v2" ]] && ! outside_geocoder_window; then
+    restore
+    echo "Refusing: the checks ran into the geocoder window around :37. Retry after :50." >&2
+    exit 1
+  fi
   msg="Switch /meetings to v2 (Groups + Group Meetings)"
   [[ "$TARGET" == "v1" ]] && msg="Roll /meetings back to v1 (flat Meetings collection)"
   if [[ -n "${MEETINGS_SWITCH_TRAILER:-}" ]]; then
@@ -145,10 +164,16 @@ else
     git commit -q -m "$msg" -- "$SOURCE_FILE"
   fi
   if ! git push -q origin main; then
-    git reset -q --soft HEAD~1
-    restore
-    echo "Push failed; the commit was undone and $SOURCE_FILE restored. Nothing changed in production." >&2
-    exit 1
+    # A push can fail after it landed; never undo a commit production has.
+    git fetch -q origin main || true
+    if [[ "$(git rev-parse origin/main)" == "$(git rev-parse HEAD)" ]]; then
+      echo "Push reported an error but origin/main has the commit; carrying on."
+    else
+      git reset -q HEAD~1
+      git checkout -- "$SOURCE_FILE"
+      echo "Push failed; the commit was undone and $SOURCE_FILE restored. Nothing changed in production." >&2
+      exit 1
+    fi
   fi
   echo "Pushed $(git rev-parse --short HEAD) to main; waiting for Netlify to deploy it."
 fi
@@ -183,7 +208,7 @@ if [[ "$TARGET" == "v1" ]]; then
     echo "Lines marked ~/+/- above are edits made in Groups / Group Meetings that the old collection does not have."
   fi
   echo "If ?source=v2 did not answer as itself above, that list is INCOMPLETE: take the lost edits from"
-  echo "Webflow (Group Meetings / Groups sorted by last updated, since $(node -e 'console.log(require("./src/lib/meetings-source.json").since)'))."
+  echo "Webflow (Group Meetings / Groups sorted by last updated, since $(node -e 'const c=require("./src/lib/meetings-source.json");console.log(c.cutoverAt ?? "the cutover")'))."
 elif (( status == 0 )); then
   echo "LIVE ON v2. Editors edit Groups + Group Meetings from now on; the old Meetings collection is frozen."
 fi

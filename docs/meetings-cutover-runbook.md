@@ -13,10 +13,12 @@ JSON shape never change; only the CMS structure behind it does.
 | `v1` | Meetings (flat) | Meetings | manual only, and only before the first cutover |
 | `v2` | Groups + Group Meetings | Groups | refuses to run |
 
-`since` is the freeze time of the first cutover and never moves: every later
-switch keeps it. Once it is set, the v1→v2 sync refuses to run, rollback
-included (after a rollback, re-enter v2 edits in v1 by hand, never with the
-sync). The dormant instant-geocode webhook also ignores the frozen collection.
+`cutoverAt` is the first cutover and never changes; once it is set the v1→v2
+sync refuses to run, rollback included (after a rollback, re-enter v2 edits in
+v1 by hand, never with the sync). `since` is the freeze time of the current v2
+period, reset by each switch to v2; the legacy watch flags v1 edits after it.
+Roll back only with the script: a `git revert` of a switch commit would clear
+`cutoverAt`. The dormant instant-geocode webhook ignores the frozen collection.
 
 Hourly read-only checks run after the geocoder (`.github/workflows/geocode-meetings.yml`,
 public logs, slugs only); a failure emails the repo:
@@ -52,8 +54,9 @@ the previous answer for up to 5 minutes.
 
 `v2` refuses unless `INCLUDE_DRAFTS = false`, production's `?source=v1` and
 `?source=v2` answer as themselves and match exactly (`ALLOW_DRIFT=1` for a
-switch forward after a rollback), and the time is outside :33–:47 (the hourly
-geocoder reads the switch when it starts at :37). `v1` runs only the build
+switch forward after a rollback; first re-enter in v2 any v1 edits made during
+the rollback), and the time is outside :33–:50 (the hourly geocoder reads the
+switch when it starts at :37; checked again right before the push). `v1` runs only the build
 (`SKIP_CHECKS=1` skips it) so a test can never block an emergency. A failed
 push undoes the local commit.
 

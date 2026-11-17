@@ -13,15 +13,18 @@ export function parseSource(text) {
   if (config?.source !== 'v1' && config?.source !== 'v2') {
     throw new Error(`meetings-source.json: source must be "v1" or "v2", got ${JSON.stringify(config?.source)}`);
   }
-  // `since` is the freeze time of the first cutover and never moves after it:
-  // the legacy watch flags v1 edits after it, and once it is set the v1→v2
-  // sync is retired for good (a rollback keeps it).
-  const hasSince = typeof config.since === 'string' && !Number.isNaN(Date.parse(config.since));
-  if (config.since != null && !hasSince) {
-    throw new Error('meetings-source.json: "since" must be an ISO timestamp or null');
+  // `cutoverAt` is the first cutover and never changes: once set, the v1→v2
+  // sync is retired for good, rollback included. `since` is the freeze time
+  // of the current v2 period (reset by each switch to v2): the legacy watch
+  // flags v1 edits after it.
+  const isTime = (v) => typeof v === 'string' && !Number.isNaN(Date.parse(v));
+  for (const key of ['since', 'cutoverAt']) {
+    if (config[key] != null && !isTime(config[key])) {
+      throw new Error(`meetings-source.json: "${key}" must be an ISO timestamp or null`);
+    }
   }
-  if (config.source === 'v2' && !hasSince) {
-    throw new Error('meetings-source.json: source "v2" needs an ISO timestamp in "since"');
+  if (config.source === 'v2' && !(isTime(config.since) && isTime(config.cutoverAt))) {
+    throw new Error('meetings-source.json: source "v2" needs ISO timestamps in "since" and "cutoverAt"');
   }
   return config;
 }

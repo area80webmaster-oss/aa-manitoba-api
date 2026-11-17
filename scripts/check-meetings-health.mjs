@@ -19,10 +19,16 @@ import { buildFeed, manitobaToday } from '../src/lib/meetings-v2/feed.ts';
 import { getDayOptions, listAllItems } from '../src/lib/meetings-v2/webflow.ts';
 
 const API = 'https://api.aamanitoba.org/meetings';
+// Stricter than the route's own 300-row floor on purpose: the route keeps
+// serving between 300 and 350, but a drop that large deserves a human.
 const MIN_ROWS = 350;
-// The public feed is cached for up to 5 minutes, so an edit made between the
-// two reads looks like a mismatch; one recheck after the cache window settles it.
+// An editor saving between the CMS read and the feed read (or items shifting
+// across pages mid-read) looks like a mismatch; one recheck settles it.
 const RECHECK_MS = 330_000;
+// A switch push starts this job while Netlify is still deploying, so a wrong
+// source or a stale copy is waited out for up to 10 minutes before it counts.
+const SETTLE_TRIES = 20;
+const SETTLE_MS = 30_000;
 
 const { source, since } = readSource();
 const problems = [];
@@ -68,6 +74,11 @@ function diff(expected, feed) {
 }
 
 let feed = await publicFeed();
+for (let i = 0; i < SETTLE_TRIES && checkServing(feed).length; i++) {
+  console.log(`Waiting for /meetings to settle: ${checkServing(feed).join('; ')}`);
+  await new Promise((r) => setTimeout(r, SETTLE_MS));
+  feed = await publicFeed();
+}
 problems.push(...checkServing(feed));
 
 if (source === 'v2') {
