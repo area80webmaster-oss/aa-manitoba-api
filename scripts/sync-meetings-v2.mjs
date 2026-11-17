@@ -20,6 +20,9 @@
 //     no DELETE, no isArchived. Created and updated items both say
 //     isDraft:true explicitly, so the parallel run never depends on an API
 //     default to stay unpublished. Retirement is a hide flag, never a delete.
+//   • Runs only while src/lib/meetings-source.json says "v1". Once /meetings
+//     reads v2 the sync refuses to start (see syncAllowed), and its workflow
+//     no longer runs on a schedule or on pushes.
 //   • mode comes from sync-meetings-v2.config.json, overridable by SYNC_MODE.
 //     dry-run prints the plan and writes nothing.
 //   • A read that comes up short of pagination.total, or whose total moved
@@ -46,6 +49,7 @@
 import { readFileSync, realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { logKey, planSync, splitGroupRetirements, verifyPlan } from './lib/meetings-v2-plan.mjs';
+import { readSource } from './lib/meetings-source.mjs';
 
 const V1_COLLECTION_ID = '6a101256165031ecf1106518'; // Meetings — GET only
 export const V2_GROUPS_ID = '6af5eb2a3787a4d79902fc64';
@@ -404,7 +408,19 @@ export function resolveMode(env = process.env) {
   return mode;
 }
 
+// After the cutover Groups + Group Meetings are where volunteers edit, so a
+// v1→v2 run would overwrite their work with the frozen v1 data and hide every
+// meeting added since. It may only ever run while v1 is live.
+export function syncAllowed(source) {
+  return source === 'v1';
+}
+
 async function main() {
+  const { source } = readSource();
+  if (!syncAllowed(source)) {
+    console.log(`meetings-source.json says "${source}": the v1→v2 sync is retired and wrote nothing.`);
+    return;
+  }
   token = process.env.WEBFLOW_WRITE_TOKEN;
   if (!token) {
     console.error(

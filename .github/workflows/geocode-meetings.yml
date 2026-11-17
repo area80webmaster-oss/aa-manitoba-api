@@ -1,5 +1,7 @@
-# Hourly: fill Latitude/Longitude on Meetings whose Address changed, via
-# scripts/geocode-meetings.mjs (rules and safety rails documented there).
+# Hourly: fill Latitude/Longitude where an Address changed, via
+# scripts/geocode-meetings.mjs (rules and safety rails documented there). It
+# works on Meetings or on Groups, whichever src/lib/meetings-source.json says is
+# live. After the cutover a second step watches the frozen old collection.
 # The /webhooks/geocode-meeting endpoint is the instant path; this sweep is
 # the backfill and safety net behind it.
 #
@@ -34,6 +36,11 @@ on:
     branches: [main, geocode]
     paths:
       - 'scripts/geocode-meetings.mjs'
+      - 'scripts/check-legacy-untouched.mjs'
+      - 'scripts/lib/meetings-source.mjs'
+      # Switching /meetings between v1 and v2 moves the sweep to the other
+      # collection; run it right away so the switch is checked, not assumed.
+      - 'src/lib/meetings-source.json'
       - '.github/workflows/geocode-meetings.yml'
 
 jobs:
@@ -56,3 +63,11 @@ jobs:
           DRAFT_ONLY: ${{ (github.ref != 'refs/heads/main' || inputs.draft_only == true) && '1' || '0' }}
           GEOCODER_CONTACT: 'webmaster@aamanitoba.org'
         run: node scripts/geocode-meetings.mjs
+      # After the cutover the old Meetings collection must stay untouched; an
+      # edit there never reaches the website. Read-only; runs even when the
+      # geocoder failed.
+      - name: Check the old Meetings collection is untouched
+        if: ${{ !cancelled() }}
+        env:
+          WEBFLOW_WRITE_TOKEN: ${{ secrets.WEBFLOW_WRITE_TOKEN }}
+        run: node scripts/check-legacy-untouched.mjs

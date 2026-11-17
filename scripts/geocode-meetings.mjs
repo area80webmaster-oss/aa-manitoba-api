@@ -1,6 +1,7 @@
 // Geocode sweep: fills Latitude/Longitude (plus approximate:"no" and a
-// geocoded-address marker) on Meetings items whose Address changed since the
-// last successful geocode. The /webhooks/geocode-meeting endpoint handles the
+// geocoded-address marker) on items whose Address changed since the last
+// successful geocode: Meetings items while meetings-source.json says v1,
+// Groups items once it says v2 (same field slugs in both). The /webhooks/geocode-meeting endpoint handles the
 // instant path when someone saves an item; this sweep is the backfill and the
 // safety net behind it (webhooks can be missed; GitHub cron can't).
 //
@@ -32,7 +33,12 @@
 // Env: WEBFLOW_WRITE_TOKEN (scope: CMS read + write), optional DRY_RUN=1,
 //      DRAFT_ONLY=1, GEOCODER_CONTACT (email/URL for the Nominatim UA).
 
-const COLLECTION_ID = '6a101256165031ecf1106518'; // Meetings
+import { geocodeCollectionFor, readSource } from './lib/meetings-source.mjs';
+
+// The address and pin live on Meetings items before the cutover and on Groups
+// items after it, so the sweep follows the live structure.
+const { source } = readSource();
+const COLLECTION_ID = geocodeCollectionFor(source);
 const API = 'https://api.webflow.com/v2';
 const NOMINATIM = 'https://nominatim.openstreetmap.org/search';
 // Manitoba venues: anything wider than ~2 km is a locality match, not a street
@@ -189,7 +195,7 @@ for (let offset = 0; ; offset += 100) {
   items.push(...page.items);
   if (items.length >= page.pagination.total) break;
 }
-console.log(`Fetched ${items.length} meetings.`);
+console.log(`Fetched ${items.length} ${source === 'v2' ? 'groups' : 'meetings'} (source ${source}).`);
 
 // 2. Stamp pre-geocoder items: hand-entered coordinates, no marker yet.
 const toStamp = items.filter((item) => {

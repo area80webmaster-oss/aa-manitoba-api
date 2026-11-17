@@ -1,5 +1,9 @@
 import { env } from '$env/dynamic/private';
 import type { RequestHandler } from './$types';
+import { MEETINGS_SOURCE, requestedSource, type MeetingsSource } from '$lib/meetings-source';
+import { GROUPS_COLLECTION_ID, GROUP_MEETINGS_COLLECTION_ID, INCLUDE_DRAFTS } from '$lib/meetings-v2/config';
+import { buildFeed, manitobaToday } from '$lib/meetings-v2/feed';
+import { feedDeadline, getDayOptions, listAllItems } from '$lib/meetings-v2/webflow';
 
 const WEBFLOW_API_BASE = 'https://api.webflow.com/v2';
 const COLLECTION_ID = '6a101256165031ecf1106518';
@@ -115,7 +119,7 @@ function normalizePhone(raw: string | null | undefined): string | null {
 	return trimmed;
 }
 
-async function fetchAllMeetings(token: string): Promise<unknown[]> {
+async function fetchAllMeetings(token: string, signal?: AbortSignal): Promise<unknown[]> {
 	const items: unknown[] = [];
 	const limit = 100;
 	let offset = 0;
@@ -128,7 +132,8 @@ async function fetchAllMeetings(token: string): Promise<unknown[]> {
 				headers: {
 					Authorization: `Bearer ${token}`,
 					'accept-version': '1.0.0'
-				}
+				},
+				signal
 			}
 		);
 
@@ -206,7 +211,72 @@ export const OPTIONS: RequestHandler = () => {
 	return new Response(null, { status: 204, headers: SECURITY_HEADERS });
 };
 
-export const GET: RequestHandler = async () => {
+
+// Below this many rows a v2 build is treated as broken rather than served:
+// the list holds ~410 meetings, and losing a quarter of them at once means a
+// bad read or a mass mistake, not an edit anyone meant.
+const MIN_V2_ROWS = 300;
+// Netlify stops the function at 10 s; the v1 fallback only starts when it can
+// still finish inside that.
+const FUNCTION_BUDGET_MS = 9_500;
+const MIN_FALLBACK_MS = 2_000;
+// Degraded answers (stale or fallback) are cached briefly so recovery shows
+// up within a minute instead of after the normal 5.
+const SHORT_CACHE = 'public, max-age=60';
+
+// Per-instance only: a cold instance has none.
+let lastGoodV2: string | null = null;
+
+function feedResponse(
+	body: string,
+	source: MeetingsSource | 'v1-fallback',
+	extra: Record<string, string> = {}
+): Response {
+	return new Response(body, {
+		status: 200,
+		headers: {
+			...SECURITY_HEADERS,
+			'Content-Type': 'application/json',
+			// Cache for 5 minutes; serve stale for up to 60s while revalidating
+			'Cache-Control': 'public, max-age=300, stale-while-revalidate=60',
+			'X-Meetings-Source': source,
+			...extra
+		}
+	});
+}
+
+function failedResponse(): Response {
+	return new Response(JSON.stringify({ error: 'Failed to fetch meeting data' }), {
+		status: 502,
+		headers: { ...SECURITY_HEADERS, 'Content-Type': 'application/json' }
+	});
+}
+
+async function buildV1(token: string, signal?: AbortSignal): Promise<string> {
+	const raw = await fetchAllMeetings(token, signal);
+	const meetings = (raw as Record<string, unknown>[])
+		.filter((item) => !item.isArchived && !item.isDraft)
+		.map(transformMeeting);
+	return JSON.stringify(meetings);
+}
+
+// Same build as /meetings-v2, so what was verified there is what ships here.
+async function buildV2(token: string): Promise<string> {
+	const deadline = feedDeadline();
+	const [groups, meetings, dayOptions] = await Promise.all([
+		listAllItems(GROUPS_COLLECTION_ID, token, deadline),
+		listAllItems(GROUP_MEETINGS_COLLECTION_ID, token, deadline),
+		getDayOptions(GROUP_MEETINGS_COLLECTION_ID, token, deadline)
+	]);
+	const { rows, skipped } = buildFeed(groups, meetings, dayOptions, manitobaToday(), INCLUDE_DRAFTS);
+	// Slug and reason only: meeting data must not reach the logs.
+	for (const [slug, reason] of skipped) console.warn(`[meetings] v2 skipped ${slug}: ${reason}`);
+	if (rows.length < MIN_V2_ROWS) throw new Error(`v2 feed has only ${rows.length} rows`);
+	return JSON.stringify(rows);
+}
+
+export const GET: RequestHandler = async ({ url }) => {
+	const started = Date.now();
 	const token = env.WEBFLOW_API_TOKEN;
 
 	if (!token) {
@@ -216,26 +286,38 @@ export const GET: RequestHandler = async () => {
 		});
 	}
 
-	try {
-		const raw = await fetchAllMeetings(token);
-		const meetings = (raw as Record<string, unknown>[])
-			.filter((item) => !item.isArchived && !item.isDraft)
-			.map(transformMeeting);
+	const source = requestedSource(url.searchParams.get('source')) ?? MEETINGS_SOURCE;
 
-		return new Response(JSON.stringify(meetings), {
-			status: 200,
-			headers: {
-				...SECURITY_HEADERS,
-				'Content-Type': 'application/json',
-				// Cache for 5 minutes; serve stale for up to 60s while revalidating
-				'Cache-Control': 'public, max-age=300, stale-while-revalidate=60'
-			}
-		});
-	} catch (err) {
-		console.error('[meetings] fetch failed:', err);
-		return new Response(JSON.stringify({ error: 'Failed to fetch meeting data' }), {
-			status: 502,
-			headers: { ...SECURITY_HEADERS, 'Content-Type': 'application/json' }
-		});
+	if (source === 'v1') {
+		try {
+			return feedResponse(await buildV1(token), 'v1');
+		} catch (err) {
+			console.error('[meetings] fetch failed:', err);
+			return failedResponse();
+		}
 	}
+
+	try {
+		const body = await buildV2(env.WEBFLOW_V2_API_TOKEN || token);
+		lastGoodV2 = body;
+		return feedResponse(body, 'v2');
+	} catch (err) {
+		console.error('[meetings] v2 build failed:', err);
+	}
+
+	// A broken v2 read must never empty the meeting list: the last good v2
+	// answer first, then the frozen v1 collection, then an error.
+	if (lastGoodV2 !== null) {
+		return feedResponse(lastGoodV2, 'v2', { 'X-Feed-Stale': '1', 'Cache-Control': SHORT_CACHE });
+	}
+	const remaining = FUNCTION_BUDGET_MS - (Date.now() - started);
+	if (remaining >= MIN_FALLBACK_MS) {
+		try {
+			const body = await buildV1(token, AbortSignal.timeout(remaining));
+			return feedResponse(body, 'v1-fallback', { 'Cache-Control': SHORT_CACHE });
+		} catch (err) {
+			console.error('[meetings] v1 fallback failed:', err);
+		}
+	}
+	return failedResponse();
 };
