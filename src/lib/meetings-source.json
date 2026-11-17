@@ -1,5 +1,5 @@
 {
-	"source": "v2",
-	"since": "2026-11-17T10:40:00.000Z",
+	"source": "v1",
+	"since": null,
 	"cutoverAt": "2026-11-17T10:40:00.000Z"
 }
